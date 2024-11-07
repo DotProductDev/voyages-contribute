@@ -1,16 +1,15 @@
 import { expect, test } from "vitest"
 import { MockDataResolver } from "./mock"
-import { getSchema } from "../src/models/entities"
+import { VoyageSchema } from "../src/models/entities"
 import { fetchEntities } from "../src/backend/entityFetch"
 
 test("voyage entity fetch", async () => {
   const resolver = new MockDataResolver()
-  const voyageSchema = getSchema("Voyage")
   const result = await fetchEntities(
-    voyageSchema,
+    VoyageSchema,
     [
       {
-        field: voyageSchema.pkField,
+        field: VoyageSchema.pkField,
         value: 1234
       }
     ],

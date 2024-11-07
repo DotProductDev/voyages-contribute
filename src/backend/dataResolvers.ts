@@ -1,8 +1,8 @@
+import { NonNullFieldValue } from "../models/materialization"
 import {
   DataResolver,
   DbConnection,
-  EscapeFunc,
-  NonNullFieldValue
+  EscapeFunc
 } from "../models/query"
 
 const mapOperator = (operator?: string) => {

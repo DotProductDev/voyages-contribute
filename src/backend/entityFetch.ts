@@ -1,6 +1,7 @@
 import { EntitySchema, getSchema } from "../models/entities"
+import { MaterializedEntity } from "../models/materialization"
 import { Property } from "../models/properties"
-import { DataFilter, DataResolver, MaterializedEntity } from "../models/query"
+import { DataFilter, DataResolver } from "../models/query"
 
 const extractFields = (properties: Property[], additionalFields?: string[]) => {
   const fieldMap = new Map<string, string>()
@@ -35,10 +36,11 @@ const bindEntity = (
   data: Record<string, any>,
   fieldMap: Map<string, string>
 ): MaterializedEntity => ({
-  ...Object.keys(data).reduce(
+  data: Object.keys(data).reduce(
     (agg, k) => ({ ...agg, [fieldMap.get(k) ?? k]: data[k] }),
     {}
   ),
+  state: "original",
   schema: s.name,
   id: data[s.pkField]
 })
@@ -129,7 +131,7 @@ export const fetchEntities = async (
           }
         }
         if (f) {
-          entity[p.label] = singleOrNull(
+          entity.data[p.label] = singleOrNull(
             await fetchEntities(linkedSchema, [f], resolver)
           )
         }
@@ -154,7 +156,7 @@ export const fetchEntities = async (
                 field: linkedSchema.pkField,
                 operator: "IN",
                 value: m2m
-                  .map((v) => v[p.rightSideBackingField])
+                  .map((v) => v.data[p.rightSideBackingField])
                   .filter((v) => v !== null)
               }
             ],
@@ -164,7 +166,7 @@ export const fetchEntities = async (
         )
         // Now every entry in the m2m relation should have a match in matches.
         for (const item of m2m) {
-          const pkRight = item[p.rightSideBackingField]
+          const pkRight = item.data[p.rightSideBackingField]
           if (!pkRight || typeof pkRight === "object") {
             throw new Error(
               `Fetch on M2M did not return an id value for the right backing field '${p.rightSideBackingField}'`
@@ -177,9 +179,9 @@ export const fetchEntities = async (
             )
           }
           // Replace the key by the entity.
-          item[p.rightSideBackingField] = m
+          item.data[p.rightSideBackingField] = m
         }
-        entity[p.label] = m2m
+        entity.data[p.label] = m2m
       }
     }
     entities.push(entity)

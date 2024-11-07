@@ -16,10 +16,16 @@ export interface BaseProperty {
 
 export interface TextProperty extends BaseProperty {
   readonly kind: "text"
+  // By default text is non nullable
+  // (empty string should work most of the time).
+  nullable?: boolean
 }
 
 export interface NumberProperty extends BaseProperty {
   readonly kind: "number"
+  // For our use case it seems that the majority of numbers
+  // are nullable, so we make that the default.
+  notNull?: boolean
 }
 
 export interface PartialDate {
@@ -49,6 +55,7 @@ export interface EntityValueProperty extends EntityLinkBaseProperty {
    * entity is at the child entity.
    */
   oneToOneBackingField?: string
+  notNull?: boolean
 }
 
 export enum ListEditMode {

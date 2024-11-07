@@ -1,3 +1,5 @@
+import { NonNullFieldValue, EntityData } from "./materialization"
+
 export interface DataFilter {
   /**
    * The field to search for.
@@ -13,21 +15,6 @@ export interface DataFilter {
 export interface DataQuery {
   model: string
   filter: DataFilter[]
-}
-
-export type NonNullFieldValue =
-  | string
-  | number
-  | MaterializedEntity
-  | MaterializedEntity[]
-
-export type FieldValue = NonNullFieldValue | null
-
-export type EntityData = Record<string, FieldValue>
-
-export interface MaterializedEntity extends EntityData {
-  id: string
-  schema: string
 }
 
 /**

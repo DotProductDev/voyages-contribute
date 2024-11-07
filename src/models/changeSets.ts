@@ -1,50 +1,44 @@
 import { AllProperties } from "./entities"
 import { EntityListProperty, EntityValueProperty, Property } from "./properties"
 
-export interface DirectPropertyChange {
-  readonly kind: "direct"
+export interface PropertyChangeBase {
   property: string
-  changed: string | number | EntityRef | null
   comments: string
+}
+
+export interface DirectPropertyChange extends PropertyChangeBase {
+  readonly kind: "direct"
+  changed: string | number | EntityRef | null
 }
 
 export const isDirectChange = (
   change: PropertyChange
 ): change is DirectPropertyChange => change.kind === "direct"
 
-export interface NewEntityRef {
-  type: "newEntityRef"
-  /**
-   * A temporary unique id (there should not be collisions even across
-   * different entity types).
-   */
-  tempId: string
+export interface EntityRef {
+  type: "existing" | "new"
+  schema: string
+  id: string | number
 }
 
-export type EntityRef = string | NewEntityRef
+export const isEntityRef = (maybeRef: EntityRef | any): maybeRef is EntityRef =>
+  maybeRef !== null && typeof maybeRef === "object" && !!(maybeRef as EntityRef).schema && !!(maybeRef as EntityRef).id
 
-export const isNewEntityRef = (ref: EntityRef | null): ref is NewEntityRef =>
-  !!ref && (ref as NewEntityRef).type === "newEntityRef"
+export const areMatch = (a: EntityRef, b: EntityRef) =>
+  a === b || (a.type === b.type && a.schema === b.schema && a.id === b.id)
 
-export const isMatch = (a: EntityRef, b: EntityRef) =>
-  a === b || (isNewEntityRef(a) && isNewEntityRef(b) && a.tempId === b.tempId)
-
-export interface LinkedEntitySelectionChange {
+export interface LinkedEntitySelectionChange extends PropertyChangeBase {
   readonly kind: "linked"
-  property: string
   /**
    * The id of the selected entity in the change.
    */
   next: EntityRef | null
-  comments: string
 }
 
-export interface OwnedEntityChange {
+export interface OwnedEntityChange extends PropertyChangeBase {
   readonly kind: "owned"
-  property: string
   ownedEntityId: EntityRef
   changes: PropertyChange[]
-  comments: string
 }
 
 export const isOwnedEntityChange = (
@@ -57,15 +51,16 @@ export interface ManyToManyUpdate {
   ownedChanges: OwnedEntityChange
 }
 
-export interface EntityListChange {
+export interface EntityListChange extends PropertyChangeBase {
   readonly kind: "list"
-  property: string
   /**
-   * A list of refs to the connection (M2M) entity.
+   * A list of refs to the connection (M2M) entity that should be deleted.
    */
   removed: EntityRef[]
+  /**
+   * Modified or new entities in the list.
+   */
   modified: ManyToManyUpdate[]
-  comments: string
 }
 
 export type PropertyChange =
@@ -74,32 +69,26 @@ export type PropertyChange =
   | OwnedEntityChange
   | EntityListChange
 
+/**
+ * An entity update or insert.
+ */
 export interface EntityUpdate<TChange extends PropertyChange = PropertyChange> {
   readonly type: "update"
-  schema: string
-  entityId: EntityRef
+  entityRef: EntityRef
   changes: TChange[]
 }
 
-export interface EntityDeletion {
-  readonly type: "deletion"
-  schema: string
-  entityId: EntityRef
+export interface EntityDelete {
+  readonly type: "delete"
+  entityRef: EntityRef
 }
 
-export interface EntityDelCancel {
-  readonly type: "delCancel"
-  schema: string
-  entityId: EntityRef
+export interface EntityUndelete {
+  readonly type: "undelete"
+  entityRef: EntityRef
 }
 
-export type EntityChange = EntityUpdate | EntityDeletion | EntityDelCancel
-
-export interface ChangeSet {
-  title: string
-  comments: string
-  entityChanges: EntityChange[]
-}
+export type EntityChange = EntityUpdate | EntityDelete | EntityUndelete
 
 type Ordered<T> = T & { order: number }
 
@@ -147,7 +136,7 @@ const validateAndGetProperty = <T extends PropertyChange>(
   }
   if (isOwnedEntityChange(change)) {
     const isValid =
-      (prop as EntityValueProperty).linkedEntitySchema === change.ownedEntityId
+      (prop as EntityValueProperty).linkedEntitySchema === change.ownedEntityId.schema
     if (isValid) {
       throw new Error(
         `Owned entity is different than its corresponding property`
@@ -158,29 +147,28 @@ const validateAndGetProperty = <T extends PropertyChange>(
 }
 
 export interface CombinedChangeSet {
-  deletions: EntityDeletion[]
+  deletions: EntityDelete[]
   updates: EntityUpdate<DirectPropertyChange>[]
 }
 
 /**
- * Combine an ordered sequence of change sets into a flat list of deletes and
- * updates containing only direct changes that should be easy to apply within a
- * transaction.
+ * Combine an ordered sequence of changes into a flat list of deletes and
+ * updates containing only direct changes that can be inspected or applied in
+ * a db transaction.
  */
-export const combineChangeSets = (
-  changeSets: ChangeSet[]
+export const combineChanges = (
+  allChanges: EntityChange[]
 ): CombinedChangeSet => {
-  const deletedEntries: Ordered<EntityDeletion>[] = []
-  const delCancelEntries: Ordered<EntityDelCancel>[] = []
+  const deletedEntries: Ordered<EntityDelete>[] = []
+  const undeletedEntries: Ordered<EntityUndelete>[] = []
   const updatedEntries: Ordered<EntityUpdate>[] = []
-  const allChanges = changeSets.flatMap((c) => c.entityChanges)
   let order = 0
   for (const change of allChanges) {
     ++order
-    if (change.type === "deletion") {
+    if (change.type === "delete") {
       deletedEntries.push({ ...change, order })
-    } else if (change.type === "delCancel") {
-      delCancelEntries.push({ ...change, order })
+    } else if (change.type === "undelete") {
+      undeletedEntries.push({ ...change, order })
     } else if (change.type === "update") {
       updatedEntries.push({ ...change, order })
     } else {
@@ -208,7 +196,7 @@ export const combineChangeSets = (
           ownedChanges.push({
             kind: "direct",
             property: prop.oneToOneBackingField,
-            changed: u.entityId,
+            changed: u.entityRef,
             comments: uc.comments
           })
         } else {
@@ -216,7 +204,6 @@ export const combineChangeSets = (
           // owned entity.
           updatedEntries.push({
             type: "update" as const,
-            schema: u.schema,
             changes: [
               {
                 kind: "direct",
@@ -225,15 +212,14 @@ export const combineChangeSets = (
                 comments: uc.comments
               }
             ],
-            entityId: u.entityId,
+            entityRef: u.entityRef,
             order
           })
         }
         updatedEntries.push({
           type: "update" as const,
-          schema: prop.linkedEntitySchema,
           changes: ownedChanges,
-          entityId: uc.ownedEntityId,
+          entityRef: uc.ownedEntityId,
           order
         })
         u.changes.splice(i, 1)
@@ -241,9 +227,8 @@ export const combineChangeSets = (
         const prop = validateAndGetProperty(uc)
         for (const r of uc.removed) {
           deletedEntries.push({
-            type: "deletion",
-            schema: prop.manyToManyEntity,
-            entityId: r,
+            type: "delete",
+            entityRef: r,
             order
           })
         }
@@ -253,9 +238,8 @@ export const combineChangeSets = (
           if (m.ownedChanges.changes.length > 0) {
             updatedEntries.push({
               type: "update" as const,
-              schema: prop.linkedEntitySchema,
               changes: m.ownedChanges.changes,
-              entityId: m.ownedChanges.ownedEntityId,
+              entityRef: m.ownedChanges.ownedEntityId,
               order
             })
           }
@@ -263,13 +247,12 @@ export const combineChangeSets = (
           // relation.
           updatedEntries.push({
             type: "update" as const,
-            schema: prop.manyToManyEntity,
             changes: [
               ...m.connection,
               {
                 kind: "direct" as const,
                 property: prop.leftSideBackingField,
-                changed: u.entityId,
+                changed: u.entityRef,
                 comments: ""
               },
               {
@@ -279,7 +262,7 @@ export const combineChangeSets = (
                 comments: ""
               }
             ],
-            entityId: m.idConn,
+            entityRef: m.idConn,
             order
           })
         }
@@ -289,7 +272,6 @@ export const combineChangeSets = (
         // This is a direct update on a FK value of the entity.
         updatedEntries.push({
           type: "update" as const,
-          schema: prop.schema,
           changes: [
             {
               kind: "direct" as const,
@@ -298,7 +280,7 @@ export const combineChangeSets = (
               comments: uc.comments
             }
           ],
-          entityId: u.entityId,
+          entityRef: u.entityRef,
           order
         })
         u.changes.splice(i, 1)
@@ -326,14 +308,14 @@ export const combineChangeSets = (
     }
   }
   // First match delete-Cancel x deleted.
-  for (const dc of delCancelEntries) {
+  for (const dc of undeletedEntries) {
     let match = -1
     for (let i = 0; i < deletedEntries.length; ++i) {
       const d = deletedEntries[i]
       if (dc.order < d.order) {
         break
       }
-      if (d.schema === dc.schema && isMatch(d.entityId, dc.entityId)) {
+      if (areMatch(d.entityRef, dc.entityRef)) {
         match = i
       }
     }
@@ -353,13 +335,13 @@ export const combineChangeSets = (
   for (let i = deletedEntries.length - 1; i >= 0; --i) {
     // We iterate in reverse order to allow removing entries from the array
     // without impacting the enumeration.
-    const { order, entityId } = deletedEntries[i]
+    const { order, entityRef: entityId } = deletedEntries[i]
     // An existing entity was marked for deletion, clear any updates to
     // the same entity appearing before the deletion and raise an error
     // if any update occurs *after* the deletion.
     for (let j = updatedEntries.length - 1; j >= 0; --j) {
       const u = updatedEntries[j]
-      if (isMatch(u.entityId, entityId)) {
+      if (areMatch(u.entityRef, entityId)) {
         if (u.order > order) {
           throw new Error(`Update on ${entityId} after its deletion`)
         }
@@ -371,9 +353,7 @@ export const combineChangeSets = (
   // a single update.
   const mergedUpdates: Record<string, EntityUpdate<DirectPropertyChange>> = {}
   for (const u of updatedEntries) {
-    const id = `${u.schema}_${
-      typeof u.entityId === "string" ? u.entityId : u.entityId.tempId
-    }`
+    const id = `${u.entityRef.schema}_${u.entityRef.id}`
     const prev = mergedUpdates[id]
     let changes = u.changes.filter(isDirectChange)
     if (prev) {
