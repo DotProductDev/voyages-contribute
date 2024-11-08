@@ -3,7 +3,7 @@ import { EntityListProperty, EntityValueProperty, Property } from "./properties"
 
 export interface PropertyChangeBase {
   property: string
-  comments: string
+  comments?: string
 }
 
 export interface DirectPropertyChange extends PropertyChangeBase {
@@ -46,8 +46,18 @@ export const isOwnedEntityChange = (
 ): change is OwnedEntityChange => (change as OwnedEntityChange).kind === "owned"
 
 export interface ManyToManyUpdate {
+  /**
+   * The reference to the connection entity.
+   */
   idConn: EntityRef
+  /**
+   * The changes applied to the connection entity.
+   */
   connection: PropertyChange[]
+  /**
+   * The changes applied to the owned-side of the connection. There may be no
+   * changes at all, but the owned reference should be explicit.
+   */
   ownedChanges: OwnedEntityChange
 }
 

@@ -38,12 +38,15 @@ and ensuring that all built schemas are added to the collection of all schemas.
 */
 class EntitySchemaBuilder {
   disposed: boolean = false
-  props: Property[] = []
+  props: Property[]
 
   constructor(
     private info: Omit<EntitySchema, "properties">,
-    private built: EntitySchema[]
-  ) {}
+    private built: EntitySchema[],
+    initProps?: Property[]
+  ) {
+    this.props = initProps ?? []
+  }
 
   add = <T extends Property>(prop: Omit<T, "schema">) => {
     if (this.disposed) {
@@ -82,7 +85,7 @@ class EntitySchemaBuilder {
       ...prop,
       kind: "entityValue",
       linkedEntitySchema: prop.linkedEntitySchema.name,
-      uid: this._mkUid(prop.backingField)
+      uid: this._mkUid(prop.backingField || prop.label)
     })
 
   build = (): EntitySchema => {
@@ -98,8 +101,10 @@ class EntitySchemaBuilder {
 
 export const AllSchemas: EntitySchema[] = []
 
-const mkBuilder = (info: Omit<EntitySchema, "properties">) =>
-  new EntitySchemaBuilder(info, AllSchemas)
+const mkBuilder = (
+  info: Omit<EntitySchema, "properties">,
+  initProps?: Property[]
+) => new EntitySchemaBuilder(info, AllSchemas, initProps)
 
 export const SparseDateSchema = mkBuilder({
   name: "VoyageSparseDate",
@@ -190,8 +195,8 @@ export const Location = mkBuilder({
   })
   .build()
 
-export const VesselEntitySchema = mkBuilder({
-  name: "Vessel",
+export const VoyageShipEntitySchema = mkBuilder({
+  name: "VoyageShip",
   backingModel: "voyageship",
   pkField: "id",
   contributionMode: "Owned"
@@ -528,7 +533,7 @@ export const VoyageSchema = mkBuilder({
   .addEntityValue({
     oneToOneBackingField: "voyage",
     backingField: "",
-    linkedEntitySchema: VesselEntitySchema,
+    linkedEntitySchema: VoyageShipEntitySchema,
     label: "Ship",
     description: "Ship that performed the voyage",
     section: SectionSNO,
@@ -572,9 +577,17 @@ export const getSchema = (name: string): EntitySchema => {
 }
 
 export const AllProperties = AllSchemas.flatMap((s) => s.properties).reduce(
-  (agg, p) => ({ ...agg, [p.uid]: p }),
+  (agg, p) => {
+    if (agg[p.uid] !== undefined) {
+      throw new Error(`Duplicate property uid: ${p.uid} @ schema ${p.schema}`)
+    }
+    return { ...agg, [p.uid]: p }
+  },
   {} as Record<string, Property>
 )
+
+export const getSchemaProp = (s: EntitySchema, label: string) =>
+  s.properties.find((p) => p.label === label)
 
 const schemaExists = (name: string) => SchemaIndex[name] !== undefined
 

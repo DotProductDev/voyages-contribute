@@ -1,5 +1,7 @@
 import { DataResolver, DbConnection } from "../src/models/query"
 import { DbDataResolver } from "../src/backend/dataResolvers"
+import { MaterializedEntity } from "../src/models/materialization"
+import { getSchema, getSchemaProp } from "../src/models/entities"
 
 const mockDbConnection = (log: string[]): DbConnection => ({
   quoteChar: "`",
@@ -23,6 +25,17 @@ const dummyRecord = (fields: string[], i?: number) =>
     (rec, f) => ({ ...rec, [f]: `dummy_${f}_${i ?? "x"}` }),
     {} as Record<string, string>
   )
+
+export const fillEntityWithDummies = (entity: MaterializedEntity) => {
+  const schema = getSchema(entity.entityRef.schema)
+  const fields = Object.keys(entity.data)
+    .filter(label => {
+      const prop = getSchemaProp(schema, label)
+      return prop !== undefined && (prop.kind === "number" || prop.kind === "text")
+    })
+  Object.assign(entity.data, dummyRecord(fields))
+  return entity
+}
 
 export class MockDataResolver implements DataResolver {
   private readonly resolver: DataResolver

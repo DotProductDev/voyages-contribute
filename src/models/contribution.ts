@@ -1,4 +1,5 @@
-import { combineChanges, EntityChange } from "./changeSets"
+import { combineChanges, EntityChange, EntityRef } from "./changeSets"
+import { MaterializedData } from "./materialization"
 
 export interface ChangeSet {
   id: number
@@ -37,6 +38,12 @@ export interface ContributionMedia {
 
 export interface Contribution {
   /**
+   * The root entities that are being created/updated/deleted in this
+   * contribution. This collection may be empty if only new entities are being
+   * contributed.
+   */
+  roots: EntityRef[]
+  /**
    * The original contribution change set.
    */
   changeSet: ChangeSet
@@ -56,4 +63,8 @@ export const combineContributionChanges = (contrib: Contribution) => {
     ...contrib.changeSet.changes,
     ...sorted.map((r) => r.changeSet.changes).flat()
   ])
+}
+
+export const fetchContributionEntities = (contrib: Contribution): MaterializedData => {
+  throw new Error(`Not implemented / ${contrib}`)
 }

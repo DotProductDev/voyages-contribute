@@ -41,8 +41,7 @@ const bindEntity = (
     {}
   ),
   state: "original",
-  schema: s.name,
-  id: data[s.pkField]
+  entityRef: { type: "existing", schema: s.name, id: data[s.pkField] }
 })
 
 const toMap = <T>(items: T[], key: (x: T) => string | number) => {
@@ -162,7 +161,7 @@ export const fetchEntities = async (
             ],
             resolver
           ),
-          (e) => e.id
+          (e) => e.entityRef.id
         )
         // Now every entry in the m2m relation should have a match in matches.
         for (const item of m2m) {
