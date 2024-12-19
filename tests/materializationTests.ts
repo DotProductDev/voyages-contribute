@@ -7,6 +7,7 @@ import {
   getChangeRefs,
   getEntity,
   isMaterializedEntity,
+  isMaterializedEntityArray,
   MaterializedEntity,
   materializeNew
 } from "../src/models/materialization"
@@ -16,7 +17,10 @@ import {
   getSchemaProp,
   NationalitySchema,
   VoyageDatesSchema,
-  SparseDateSchema
+  SparseDateSchema,
+  VoyageCargoConnectionSchema,
+  CargoUnitSchema,
+  CargoTypeSchema
 } from "../src/models/entities"
 import { EntityUpdate } from "../src/models/changeSets"
 import { fillEntityWithDummies } from "./mock"
@@ -71,6 +75,8 @@ test("materialize new voyage with edits", () => {
   assert(datesProp !== undefined, "Voyage dates prop not found in schema")
   const shipnameProp = getSchemaProp(VoyageShipEntitySchema, "Name of vessel")
   assert(shipnameProp !== undefined, "Vessel name prop not found in schema")
+  const cargoProp = getSchemaProp(VoyageSchema, "Cargo")
+  assert(cargoProp !== undefined, "Cargo prop not found in schema")
   const shipNationProp = getSchemaProp(
     VoyageShipEntitySchema,
     "National carrier"
@@ -141,6 +147,42 @@ test("materialize new voyage with edits", () => {
             changed: 42
           }
         ]
+      },
+      {
+        kind: "ownedList",
+        comments: "Adding cargo items",
+        property: cargoProp.uid,
+        removed: [],
+        modified: [{
+          kind: "owned",
+          property: cargoProp.uid,
+          ownedEntityId: {
+            id: "temp_cargo_123",
+            type: "new",
+            schema: VoyageCargoConnectionSchema.name
+          },
+          changes: [{
+            kind: "linked",
+            property: getSchemaProp(VoyageCargoConnectionSchema, "Cargo unit")?.uid ?? "<notfound>",
+            next: {
+              id: 5555,
+              schema: CargoUnitSchema.name,
+              type: "existing"
+            }
+          },{
+            kind: "linked",
+            property: getSchemaProp(VoyageCargoConnectionSchema, "Cargo type")?.uid ?? "<notfound>",
+            next: {
+              id: 7777,
+              schema: CargoTypeSchema.name,
+              type: "existing"
+            }
+          }, {
+            kind: "direct",
+            property: getSchemaProp(VoyageCargoConnectionSchema, "The amount of cargo according to the unit")?.uid ?? "<notfound>",
+            changed: 10
+          }]
+        }]
       }
     ]
   }
@@ -161,6 +203,19 @@ test("materialize new voyage with edits", () => {
   fillEntityWithDummies(fakeNat)
   fakeNat.data["Nation name"] = "Brazil"
   addToMaterializedData(data, fakeNat)
+  // More additional fake pre-existing data.
+  const fakeCargoUnit: MaterializedEntity = {
+    ...materializeNew(CargoUnitSchema, 5555),
+    state: "original"
+  }
+  fillEntityWithDummies(fakeCargoUnit)
+  addToMaterializedData(data, fakeCargoUnit)
+  const fakeCargoType: MaterializedEntity = {
+    ...materializeNew(CargoTypeSchema, 7777),
+    state: "original"
+  }
+  fillEntityWithDummies(fakeCargoType)
+  addToMaterializedData(data, fakeCargoType)
   applyChanges(data, [change])
   // console.dir(data, { depth: null })
   const modified = getEntity(data, voyage.entityRef)
@@ -176,6 +231,14 @@ test("materialize new voyage with edits", () => {
   ).toBe(1756)
   expect(getEntityByPath(modified, "Dates")?.data[voyageDaysProp.label]).toBe(
     42
-  )
+  )  
+  expect(isMaterializedEntityArray(modified.data["Cargo"]) && modified.data["Cargo"].length === 1).toBeTruthy()
+  const cargoItem = modified.data["Cargo"]![0] as MaterializedEntity
+  expect(cargoItem.state).toBe("new")
+  expect(cargoItem.data["voyage"]).toBe("new_00001")
+  expect(cargoItem.data["The amount of cargo according to the unit"]).toBe(10)
+  expect(cargoItem.data["Was this a commodity used to purchase enslaved people"]).toBe(false)
+  expect(getEntityByPath(cargoItem, "Cargo unit")?.entityRef.id).toBe(5555)
+  expect(getEntityByPath(cargoItem, "Cargo type")?.entityRef.id).toBe(7777)
   // console.dir(modified, { depth: null })
 })

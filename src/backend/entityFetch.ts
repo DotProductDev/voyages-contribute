@@ -6,11 +6,7 @@ import { DataFilter, DataResolver } from "../models/query"
 const extractFields = (properties: Property[], additionalFields?: string[]) => {
   const fieldMap = new Map<string, string>()
   for (const p of properties) {
-    if (
-      p.kind === "number" ||
-      p.kind === "text" ||
-      (p.kind === "entityValue" && !p.oneToOneBackingField)
-    ) {
+    if (p.kind === "number" || p.kind === "text" || p.kind === "linkedEntity") {
       fieldMap.set(p.backingField, p.label)
     } else if (p.kind === "table") {
       for (let i = 0; i < p.rows.length; ++i) {
@@ -115,36 +111,44 @@ export const fetchEntities = async (
         // This loop's purpose is to fetch related entities.
         break
       }
-      if (p.kind === "entityValue") {
-        let f: DataFilter | undefined = undefined
-        const linkedSchema = getSchema(p.linkedEntitySchema)
-        if (p.oneToOneBackingField) {
-          // Fetch the entity (if any) by matching the FK column in the right
-          // side entity to the PK in the left side.
-          f = { field: p.oneToOneBackingField, value: id }
-        } else {
-          // Fetch the entity by its PK, whose value is a FK in the left side.
-          const fkValue = fieldValues[p.backingField]
-          if (fkValue !== null) {
-            f = { field: linkedSchema.pkField, value: fkValue }
-          }
-        }
-        if (f) {
+      if (p.kind === "entityOwned") {
+        // Fetch the entity (if any) by matching the FK column in the right
+        // side entity to the PK in the left side.
+        entity.data[p.label] = singleOrNull(
+          await fetchEntities(
+            getSchema(p.linkedEntitySchema),
+            [{ field: p.oneToOneBackingField, value: id }],
+            resolver
+          )
+        )
+      } else if (p.kind === "linkedEntity") {
+        // Fetch the entity by its PK, whose value is a FK in the left side.
+        const fkValue = fieldValues[p.backingField]
+        if (fkValue !== null) {
+          const linkedSchema = getSchema(p.linkedEntitySchema)
           entity.data[p.label] = singleOrNull(
-            await fetchEntities(linkedSchema, [f], resolver)
+            await fetchEntities(
+              linkedSchema,
+              [{ field: linkedSchema.pkField, value: fkValue }],
+              resolver
+            )
           )
         }
-      } else if (p.kind === "entityList") {
+      } else if (p.kind === "m2mEntityList") {
+        const { connection } = p
         const m2m = await fetchEntities(
-          getSchema(p.manyToManyEntity),
-          [{ field: p.leftSideBackingField, value: id }],
+          getSchema(connection.connectionEntity),
+          [{ field: connection.leftSideBackingField, value: id }],
           resolver,
           // Ensure that we have the right side ids for later matching. We are
           // performing a shallow fetch since the left side is the current
           // entity and we will next fetch all the right side entities in bulk.
           // This assumes that the M2M entity only have these two FKs, which is
           // a reasonable assumption and valid for Voyages.
-          { additionalFields: [p.rightSideBackingField], shallow: true }
+          {
+            additionalFields: [connection.rightSideBackingField],
+            shallow: true
+          }
         )
         const linkedSchema = getSchema(p.linkedEntitySchema)
         const matches = toMap(
@@ -155,7 +159,7 @@ export const fetchEntities = async (
                 field: linkedSchema.pkField,
                 operator: "IN",
                 value: m2m
-                  .map((v) => v.data[p.rightSideBackingField])
+                  .map((v) => v.data[connection.rightSideBackingField])
                   .filter((v) => v !== null)
               }
             ],
@@ -165,10 +169,10 @@ export const fetchEntities = async (
         )
         // Now every entry in the m2m relation should have a match in matches.
         for (const item of m2m) {
-          const pkRight = item.data[p.rightSideBackingField]
+          const pkRight = item.data[connection.rightSideBackingField]
           if (!pkRight || typeof pkRight === "object") {
             throw new Error(
-              `Fetch on M2M did not return an id value for the right backing field '${p.rightSideBackingField}'`
+              `Fetch on M2M did not return an id value for the right backing field '${connection.rightSideBackingField}'`
             )
           }
           const m = matches.get(pkRight)
@@ -178,9 +182,22 @@ export const fetchEntities = async (
             )
           }
           // Replace the key by the entity.
-          item.data[p.rightSideBackingField] = m
+          item.data[connection.rightSideBackingField] = m
         }
         entity.data[p.label] = m2m
+      } else if (p.kind === "ownedEntityList") {
+        const { connection } = p
+        const children = await fetchEntities(
+          getSchema(p.linkedEntitySchema),
+          [
+            {
+              field: connection.childBackingProp,
+              value: id
+            }
+          ],
+          resolver
+        )
+        entity.data[p.label] = children
       }
     }
     entities.push(entity)
