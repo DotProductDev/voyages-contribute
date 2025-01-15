@@ -194,7 +194,7 @@ const applyUpdate = (
         ? getEntity(data, c.changed)
         : c.changed
     } else if (c.kind === "linked") {
-      target.data[prop.label] = c.next === null ? null : getEntity(data, c.next)
+      target.data[prop.label] = c.changed === null ? null : getEntity(data, c.changed)
     } else if (c.kind === "owned") {
       const owned = getEntity(data, c.ownedEntityId)
       const prev = target.data[prop.label]
@@ -333,7 +333,7 @@ export const getChangeRefs = (change: EntityChange): EntityRef[] => {
         continue
       }
       if (c.kind === "linked") {
-        c.next !== null && result.push(c.next)
+        c.changed !== null && result.push(c.changed)
       } else if (c.kind === "owned") {
         result.push(c.ownedEntityId)
         recurse(c.changes)

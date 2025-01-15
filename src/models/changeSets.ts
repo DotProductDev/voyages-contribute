@@ -13,7 +13,7 @@ export interface PropertyChangeBase {
 
 export interface DirectPropertyChange extends PropertyChangeBase {
   readonly kind: "direct"
-  changed: string | number | EntityRef | null
+  changed: string | number | boolean | EntityRef | null
 }
 
 export const isDirectChange = (
@@ -40,7 +40,7 @@ export interface LinkedEntitySelectionChange extends PropertyChangeBase {
   /**
    * The id of the selected entity in the change.
    */
-  next: EntityRef | null
+  changed: EntityRef | null
 }
 
 export interface OwnedEntityChange extends PropertyChangeBase {
@@ -123,6 +123,8 @@ export interface EntityUndelete {
 }
 
 export type EntityChange = EntityUpdate | EntityDelete | EntityUndelete
+
+export const isUpdateEntityChange = (ec: EntityChange): ec is EntityUpdate => ec.type === "update"
 
 type Ordered<T> = T & { order: number }
 
@@ -330,7 +332,7 @@ export const combineChanges = (
             {
               kind: "direct" as const,
               property: prop.backingField,
-              changed: uc.next,
+              changed: uc.changed,
               comments: uc.comments
             }
           ],

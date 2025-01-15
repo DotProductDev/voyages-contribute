@@ -170,7 +170,7 @@ export const fetchEntities = async (
         // Now every entry in the m2m relation should have a match in matches.
         for (const item of m2m) {
           const pkRight = item.data[connection.rightSideBackingField]
-          if (!pkRight || typeof pkRight === "object") {
+          if (!pkRight || typeof pkRight === "object" || typeof pkRight === "boolean") {
             throw new Error(
               `Fetch on M2M did not return an id value for the right backing field '${connection.rightSideBackingField}'`
             )

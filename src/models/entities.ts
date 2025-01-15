@@ -309,8 +309,7 @@ export const VoyageItinerarySchema = mkBuilder({
   .build()
 
 const SectionSNO = "Ship, Nations, Owners"
-const SectionNumbers = "Slaves (numbers)"
-const SectionCharacteristics = "Slaves (Characteristics)"
+const SectionCharacteristics = "Characteristics"
 
 const slaveNumberFields = [
   ["num_men_embark_first_port_purchase"],
@@ -331,7 +330,7 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
     label: "SlavesIntendedFirstPortPurchase",
     description: "Slaves intended from first port of purchase",
     backingField: "num_slaves_intended_first_port",
-    section: SectionNumbers
+    section: "Numbers"
   })
   .addTable({
     uid: "sn_characteristics",
@@ -520,12 +519,14 @@ export const VoyageSchema = mkBuilder({
   })
   .addEntityOwned({
     oneToOneBackingField: "voyage",
+    section: "Voyage Itinerary",
     linkedEntitySchema: VoyageItinerarySchema,
     label: "Itinerary",
     notNull: true
   })
   .addEntityOwned({
     oneToOneBackingField: "voyage",
+    section: "Voyage Dates",
     linkedEntitySchema: VoyageDatesSchema,
     label: "Dates",
     notNull: true
@@ -533,8 +534,8 @@ export const VoyageSchema = mkBuilder({
   .addEntityOwned({
     oneToOneBackingField: "voyage",
     linkedEntitySchema: VoyageSlaveNumbersSchema,
-    label: "Slave numbers",
-    section: SectionNumbers,
+    label: "Slave Numbers",
+    section: "Slave Numbers",
     notNull: true
   })
   .addOwnedEntityList({
