@@ -6,11 +6,7 @@ import {
   isEntityRef,
   PropertyChange
 } from "./changeSets"
-import {
-  AllProperties,
-  EntitySchema,
-  getSchema
-} from "./entities"
+import { AllProperties, EntitySchema, getSchema } from "./entities"
 
 export type NonNullFieldValue =
   | string
@@ -68,7 +64,10 @@ export const materializeNew = (
     } else if (p.kind === "table") {
       for (let i = 0; i < p.rows.length; ++i) {
         for (let j = 0; j < p.columns.length; ++j) {
-          data[p.cellField(j, i)] = null
+          const cellBackingField = p.cellField(j, i)
+          if (cellBackingField !== undefined) {
+            data[cellBackingField] = null
+          }
         }
       }
     } else if (p.kind === "linkedEntity") {
@@ -116,8 +115,8 @@ export const cloneEntity = (entity: MaterializedEntity) => {
         [key]: isMaterializedEntity(value)
           ? cloneEntity(value)
           : isMaterializedEntityArray(value)
-          ? value.map(cloneEntity)
-          : value
+            ? value.map(cloneEntity)
+            : value
       }),
       {}
     )
@@ -194,7 +193,8 @@ const applyUpdate = (
         ? getEntity(data, c.changed)
         : c.changed
     } else if (c.kind === "linked") {
-      target.data[prop.label] = c.changed === null ? null : getEntity(data, c.changed)
+      target.data[prop.label] =
+        c.changed === null ? null : getEntity(data, c.changed)
     } else if (c.kind === "owned") {
       const owned = getEntity(data, c.ownedEntityId)
       const prev = target.data[prop.label]
@@ -257,7 +257,9 @@ const applyUpdate = (
         for (const mod of c.modified) {
           const os = getSchema(mod.ownedEntityId.schema)
           const ownedEntity = getEntity(data, mod.ownedEntityId)
-          const listProp = ownerSchema.properties.find(p => p.uid === c.property)
+          const listProp = ownerSchema.properties.find(
+            (p) => p.uid === c.property
+          )
           if (listProp?.kind !== "ownedEntityList") {
             throw new Error(
               `Unexpected target property ${ownerSchema.name}:${c.property} for owned list change`
@@ -333,7 +335,9 @@ export const getChangeRefs = (change: EntityChange): EntityRef[] => {
         continue
       }
       if (c.kind === "linked") {
-        c.changed !== null && result.push(c.changed)
+        if (c.changed !== null) {
+          result.push(c.changed)
+        }
       } else if (c.kind === "owned") {
         result.push(c.ownedEntityId)
         recurse(c.changes)

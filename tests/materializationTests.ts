@@ -115,7 +115,7 @@ test("materialize new voyage with edits", () => {
           {
             kind: "linked",
             property: shipNationProp.uid,
-            next: { id: 1234, schema: NationalitySchema.name, type: "existing" }
+            changed: { id: 1234, schema: NationalitySchema.name, type: "existing" }
           }
         ]
       },
@@ -164,7 +164,7 @@ test("materialize new voyage with edits", () => {
           changes: [{
             kind: "linked",
             property: getSchemaProp(VoyageCargoConnectionSchema, "Cargo unit")?.uid ?? "<notfound>",
-            next: {
+            changed: {
               id: 5555,
               schema: CargoUnitSchema.name,
               type: "existing"
@@ -172,7 +172,7 @@ test("materialize new voyage with edits", () => {
           },{
             kind: "linked",
             property: getSchemaProp(VoyageCargoConnectionSchema, "Cargo type")?.uid ?? "<notfound>",
-            next: {
+            changed: {
               id: 7777,
               schema: CargoTypeSchema.name,
               type: "existing"

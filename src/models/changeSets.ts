@@ -180,7 +180,7 @@ const validateAndGetProperty = <T extends PropertyChange>(
       change.ownedEntityId.schema
     if (isValid) {
       throw new Error(
-        `Owned entity is different than its corresponding property`
+        "Owned entity is different than its corresponding property"
       )
     }
   }

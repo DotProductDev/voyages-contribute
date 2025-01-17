@@ -12,7 +12,9 @@ const extractFields = (properties: Property[], additionalFields?: string[]) => {
       for (let i = 0; i < p.rows.length; ++i) {
         for (let j = 0; j < p.columns.length; ++j) {
           const f = p.cellField(j, i)
-          fieldMap.set(f, f)
+          if (f !== undefined) {
+            fieldMap.set(f, f)
+          }
         }
       }
     }
@@ -41,7 +43,7 @@ const bindEntity = (
 })
 
 const toMap = <T>(items: T[], key: (x: T) => string | number) => {
-  var m = new Map<string | number, T>()
+  const m = new Map<string | number, T>()
   for (const item of items) {
     const k = key(item)
     if (m.has(k)) {
@@ -107,7 +109,7 @@ export const fetchEntities = async (
     }
     const entity = bindEntity(schema, fieldValues, fieldMap)
     for (const p of schema.properties) {
-      if (!!options?.shallow) {
+      if (options?.shallow) {
         // This loop's purpose is to fetch related entities.
         break
       }

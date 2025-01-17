@@ -130,7 +130,7 @@ export const Location = mkBuilder({
 
 export const VoyageShipEntitySchema = mkBuilder({
   name: "VoyageShip",
-  backingModel: "voyageship",
+  backingModel: "voyage_ship",
   pkField: "id",
   contributionMode: "Owned"
 })
@@ -173,7 +173,7 @@ export const VoyageShipEntitySchema = mkBuilder({
     linkedEntitySchema: Location
   })
   .addNumber({
-    label: "Year of vessel's registeration",
+    label: "Year of vessel's registration",
     backingField: "registered_year"
   })
   .addLinkedEntity({
@@ -311,13 +311,44 @@ export const VoyageItinerarySchema = mkBuilder({
 const SectionSNO = "Ship, Nations, Owners"
 const SectionCharacteristics = "Characteristics"
 
-const slaveNumberFields = [
-  ["num_men_embark_first_port_purchase"],
-  ["num_women_embark_first_port_purchase"],
-  [],
-  [],
-  [],
-  []
+const slaveNumberPrefixes = [
+  "num_men",
+  "num_women",
+  "num_boy",
+  "num_girl",
+  "num_males",
+  "num_females",
+  "num_adult",
+  "num_child",
+  "num_infant"
+]
+
+const slaveNumberSuffixes = [
+  "embark_first_port_purchase",
+  "embark_second_port_purchase",
+  "embark_third_port_purchase",
+  "died_middle_passage",
+  "disembark_first_landing",
+  "disembark_second_landing"
+]
+
+const slaveNumberImpSuffixes = [
+  "embarked",
+  "landed",
+  "total",
+  "death_middle_passage"
+]
+
+const slaveNumberColumns = [
+  "MEN",
+  "WOMEN",
+  "BOYS",
+  "GIRLS",
+  "MALES",
+  "FEMALES",
+  "ADULTS",
+  "CHILDREN",
+  "INFANTS"
 ]
 
 export const VoyageSlaveNumbersSchema = mkBuilder({
@@ -336,17 +367,7 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
     uid: "sn_characteristics",
     label: "Slave characteristics",
     section: SectionCharacteristics,
-    columns: [
-      "MEN",
-      "WOMEN",
-      "BOY",
-      "GIRL",
-      "MALE",
-      "FEMALE",
-      "ADULT",
-      "CHILD",
-      "INFANT"
-    ],
+    columns: slaveNumberColumns,
     rows: [
       "Embarked slaves (first port)",
       "Embarked slaves (second port)",
@@ -355,8 +376,24 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
       "Disembarked slaves (first port)",
       "Disembarked slaves (second port)"
     ],
+    cellField: (col, row) =>
+      `${slaveNumberPrefixes[col]}_${slaveNumberSuffixes[row]}`
+  })
+  .addTable({
+    uid: "sn_characteristics_imputed",
+    label: "Slave characteristics (imputed)",
+    section: SectionCharacteristics,
+    columns: slaveNumberColumns.slice(0, -1),
+    rows: [
+      "Imputed number at ports of purchase",
+      "Imputed number at ports of landing",
+      "Imputed number at departure or arrival",
+      "Imputed deaths on middle passage"
+    ],
     cellField: (col, row) => {
-      return slaveNumberFields[row][col] ?? `SLAVE_NUMBER_${col}x${row}`
+      return row === 2 || (col >= 4 && col <= 7)
+        ? `imp_${slaveNumberPrefixes[col]}_${slaveNumberImpSuffixes[row]}`
+        : undefined
     }
   })
   .build()
@@ -442,6 +479,20 @@ export const VoyageDatesSchema = mkBuilder({
   })
   .build()
 
+export const AfricanInfoSchema = mkBuilder({
+  name: "AfricanInfo",
+  backingModel: "african_info",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({ label: "Name", backingField: "name" })
+  .addBool({
+    label: "Possibly Offensive",
+    backingField: "possibly_offensive",
+    defaultValue: false
+  })
+  .build()
+
 export const CargoUnitSchema = mkBuilder({
   name: "CargoUnit",
   backingModel: "cargo_unit",
@@ -488,6 +539,88 @@ export const VoyageCargoConnectionSchema = mkBuilder({
     defaultValue: false
   })
   .build()
+
+export const ParticularOutcomeSchema = mkBuilder({
+  name: "ParticularOutcome",
+  backingModel: "particular_outcome",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({ label: "Name", backingField: "name" })
+  .addNumber({ label: "Value", backingField: "value" })
+  .build()
+
+export const EnslavedOutcomeSchema = mkBuilder({
+  name: "SlavesOutcome",
+  backingModel: "slaves_outcome",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({ label: "Name", backingField: "name" })
+  .addNumber({ label: "Value", backingField: "value" })
+  .build()
+
+export const VesselOutcomeSchema = mkBuilder({
+  name: "VesselOutcomeSchema",
+  backingModel: "vessel_captured_outcome",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({ label: "Name", backingField: "name" })
+  .addNumber({ label: "Value", backingField: "value" })
+  .build()
+
+export const OwnerOutcomeSchema = mkBuilder({
+  name: "OwnerOutcome",
+  backingModel: "owner_outcome",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({ label: "Name", backingField: "name" })
+  .addNumber({ label: "Value", backingField: "value" })
+  .build()
+
+export const ResistanceSchema = mkBuilder({
+  name: "Resistance",
+  backingModel: "resistance",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({ label: "Name", backingField: "name" })
+  .addNumber({ label: "Value", backingField: "value" })
+  .build()
+
+export const VoyageOutcomeSchema = mkBuilder({
+  name: "VoyageOutcome",
+  backingModel: "voyage_outcome",
+  contributionMode: "Owned",
+  pkField: "id"
+})
+  .addLinkedEntity({
+    backingField: "particular_outcome",
+    label: "Particular Outcome",
+    linkedEntitySchema: ParticularOutcomeSchema
+  })
+  .addLinkedEntity({
+    backingField: "resistance",
+    label: "Resistance",
+    linkedEntitySchema: ResistanceSchema
+  })
+  .addLinkedEntity({
+    backingField: "outcome_slaves",
+    label: "Enslaved Outcome",
+    linkedEntitySchema: EnslavedOutcomeSchema
+  })
+  .addLinkedEntity({
+    backingField: "vessel_captured_outcome",
+    label: "Vessel Outcome",
+    linkedEntitySchema: VesselOutcomeSchema
+  })
+  .addLinkedEntity({
+    backingField: "outcome_owner",
+    label: "Owner Outcome",
+    linkedEntitySchema: OwnerOutcomeSchema
+  })
 
 // TODO: this is a work in progress to map the full Voyage Entity to our
 // abstractions.

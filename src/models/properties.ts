@@ -108,9 +108,10 @@ export interface TableProperty extends Omit<BaseProperty, "backingField"> {
   columns: string[]
   rows: string[]
   /**
-   * Determines the backing field for this table cell.
+   * Determines the backing field for this table cell. If a cell does not have
+   * a corresponding variable, the function should return undefined.
    */
-  cellField: (col: number, row: number) => string
+  cellField: (col: number, row: number) => string | undefined
 }
 
 export type Property =
