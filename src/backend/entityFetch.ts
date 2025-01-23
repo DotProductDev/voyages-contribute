@@ -94,7 +94,7 @@ export const fetchEntities = async (
   fieldMap.set(schema.pkField, fieldMap.get(schema.pkField) ?? "id")
   const fetched = await resolver.fetch(
     {
-      model: schema.backingModel,
+      model: schema.backingTable,
       filter
     },
     [...fieldMap.keys()]
@@ -142,14 +142,9 @@ export const fetchEntities = async (
           getSchema(connection.connectionEntity),
           [{ field: connection.leftSideBackingField, value: id }],
           resolver,
-          // Ensure that we have the right side ids for later matching. We are
-          // performing a shallow fetch since the left side is the current
-          // entity and we will next fetch all the right side entities in bulk.
-          // This assumes that the M2M entity only have these two FKs, which is
-          // a reasonable assumption and valid for Voyages.
+          // Ensure that we have the right side ids for later matching.
           {
-            additionalFields: [connection.rightSideBackingField],
-            shallow: true
+            additionalFields: [connection.rightSideBackingField]
           }
         )
         const linkedSchema = getSchema(p.linkedEntitySchema)
@@ -159,7 +154,7 @@ export const fetchEntities = async (
             [
               {
                 field: linkedSchema.pkField,
-                operator: "IN",
+                operator: "in",
                 value: m2m
                   .map((v) => v.data[connection.rightSideBackingField])
                   .filter((v) => v !== null)
@@ -172,7 +167,11 @@ export const fetchEntities = async (
         // Now every entry in the m2m relation should have a match in matches.
         for (const item of m2m) {
           const pkRight = item.data[connection.rightSideBackingField]
-          if (!pkRight || typeof pkRight === "object" || typeof pkRight === "boolean") {
+          if (
+            !pkRight ||
+            typeof pkRight === "object" ||
+            typeof pkRight === "boolean"
+          ) {
             throw new Error(
               `Fetch on M2M did not return an id value for the right backing field '${connection.rightSideBackingField}'`
             )
@@ -180,7 +179,8 @@ export const fetchEntities = async (
           const m = matches.get(pkRight)
           if (!m) {
             throw new Error(
-              `Could not find the entity linked by an M2M: ${p.linkedEntitySchema}, right=${pkRight}`
+              `Could not find the entity linked by an M2M: ${p.linkedEntitySchema},
+              right=${pkRight}, matches=${[...matches.values()].map((v) => JSON.stringify(v))}`
             )
           }
           // Replace the key by the entity.

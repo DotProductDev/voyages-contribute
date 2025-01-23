@@ -1,5 +1,7 @@
 import { NonNullFieldValue, EntityData } from "./materialization"
 
+export type DataOperator = "equals" | "in"
+
 export interface DataFilter {
   /**
    * The field to search for.
@@ -8,7 +10,7 @@ export interface DataFilter {
   /**
    * The operator to use, if not set, it defaults to equal.
    */
-  operator?: string
+  operator?: DataOperator
   value: NonNullFieldValue | NonNullFieldValue[]
 }
 
@@ -23,14 +25,4 @@ export interface DataQuery {
  */
 export interface DataResolver {
   fetch: (query: DataQuery, fields: string[]) => Promise<EntityData[]>
-}
-
-export type EscapeFunc = (raw: string, useQuotes?: boolean) => string
-
-export interface DbConnection {
-  quoteChar: string
-
-  escape: EscapeFunc
-
-  execute: (q: string) => Promise<Record<string, string | number>[]>
 }

@@ -16,5 +16,6 @@ test("voyage entity fetch", async () => {
     resolver
   )
   // console.dir(result, { depth: null })
+  // console.dir(resolver.getLog())
   expect(result.length).toBe(1)
 })

@@ -21,7 +21,7 @@ export type EntityContributionMode = "Full" | "Owned" | "ReadOnly"
 
 export interface EntitySchema {
   name: string
-  backingModel: string
+  backingTable: string
   pkField: string
   contributionMode: EntityContributionMode
   properties: Property[]
@@ -41,7 +41,7 @@ const mkBuilder = (
 
 export const SparseDateSchema = mkBuilder({
   name: "VoyageSparseDate",
-  backingModel: "voyage_sparse_date",
+  backingTable: "voyage_sparse_date",
   pkField: "id",
   contributionMode: "Owned"
 })
@@ -64,7 +64,7 @@ export const SparseDateSchema = mkBuilder({
 
 export const NationalitySchema = mkBuilder({
   name: "Nationality",
-  backingModel: "nationality",
+  backingTable: "nationality",
   pkField: "id",
   contributionMode: "ReadOnly"
 })
@@ -82,7 +82,7 @@ export const NationalitySchema = mkBuilder({
 
 export const TonTypeSchema = mkBuilder({
   name: "TonType",
-  backingModel: "ton_type",
+  backingTable: "ton_type",
   pkField: "id",
   contributionMode: "ReadOnly"
 })
@@ -100,7 +100,7 @@ export const TonTypeSchema = mkBuilder({
 
 export const RigOfVesselSchema = mkBuilder({
   name: "RigOfVessel",
-  backingModel: "rig_of_vessel",
+  backingTable: "rig_of_vessel",
   pkField: "id",
   contributionMode: "ReadOnly"
 })
@@ -118,7 +118,7 @@ export const RigOfVesselSchema = mkBuilder({
 
 export const Location = mkBuilder({
   name: "Location",
-  backingModel: "location",
+  backingTable: "location",
   pkField: "uuid",
   contributionMode: "ReadOnly"
 })
@@ -130,7 +130,7 @@ export const Location = mkBuilder({
 
 export const VoyageShipEntitySchema = mkBuilder({
   name: "VoyageShip",
-  backingModel: "voyage_ship",
+  backingTable: "voyage_ship",
   pkField: "id",
   contributionMode: "Owned"
 })
@@ -194,7 +194,7 @@ export const VoyageShipEntitySchema = mkBuilder({
 
 export const VoyageItinerarySchema = mkBuilder({
   name: "VoyageItinerary",
-  backingModel: "voyageitinerary",
+  backingTable: "voyageitinerary",
   pkField: "id",
   contributionMode: "Owned"
 })
@@ -353,7 +353,7 @@ const slaveNumberColumns = [
 
 export const VoyageSlaveNumbersSchema = mkBuilder({
   name: "VoyageSlaveNumbers",
-  backingModel: "voyageslavenumbers",
+  backingTable: "voyageslavenumbers",
   contributionMode: "Owned",
   pkField: "id"
 })
@@ -400,7 +400,7 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
 
 export const VoyageDatesSchema = mkBuilder({
   name: "VoyageDates",
-  backingModel: "voyage_dates",
+  backingTable: "voyage_dates",
   contributionMode: "Owned",
   pkField: "id"
 })
@@ -481,7 +481,7 @@ export const VoyageDatesSchema = mkBuilder({
 
 export const AfricanInfoSchema = mkBuilder({
   name: "AfricanInfo",
-  backingModel: "african_info",
+  backingTable: "african_info",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -495,7 +495,7 @@ export const AfricanInfoSchema = mkBuilder({
 
 export const CargoUnitSchema = mkBuilder({
   name: "CargoUnit",
-  backingModel: "cargo_unit",
+  backingTable: "cargo_unit",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -504,7 +504,7 @@ export const CargoUnitSchema = mkBuilder({
 
 export const CargoTypeSchema = mkBuilder({
   name: "CargoType",
-  backingModel: "cargo_type",
+  backingTable: "cargo_type",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -513,7 +513,7 @@ export const CargoTypeSchema = mkBuilder({
 
 export const VoyageCargoConnectionSchema = mkBuilder({
   name: "VoyageCargoConnectionSchema",
-  backingModel: "voyage_cargo_connection",
+  backingTable: "voyage_cargo_connection",
   contributionMode: "Owned",
   pkField: "id"
 })
@@ -542,7 +542,7 @@ export const VoyageCargoConnectionSchema = mkBuilder({
 
 export const ParticularOutcomeSchema = mkBuilder({
   name: "ParticularOutcome",
-  backingModel: "particular_outcome",
+  backingTable: "particular_outcome",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -552,7 +552,7 @@ export const ParticularOutcomeSchema = mkBuilder({
 
 export const EnslavedOutcomeSchema = mkBuilder({
   name: "SlavesOutcome",
-  backingModel: "slaves_outcome",
+  backingTable: "slaves_outcome",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -562,7 +562,7 @@ export const EnslavedOutcomeSchema = mkBuilder({
 
 export const VesselOutcomeSchema = mkBuilder({
   name: "VesselOutcomeSchema",
-  backingModel: "vessel_captured_outcome",
+  backingTable: "vessel_captured_outcome",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -572,7 +572,7 @@ export const VesselOutcomeSchema = mkBuilder({
 
 export const OwnerOutcomeSchema = mkBuilder({
   name: "OwnerOutcome",
-  backingModel: "owner_outcome",
+  backingTable: "owner_outcome",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -582,7 +582,7 @@ export const OwnerOutcomeSchema = mkBuilder({
 
 export const ResistanceSchema = mkBuilder({
   name: "Resistance",
-  backingModel: "resistance",
+  backingTable: "resistance",
   contributionMode: "ReadOnly",
   pkField: "id"
 })
@@ -592,7 +592,7 @@ export const ResistanceSchema = mkBuilder({
 
 export const VoyageOutcomeSchema = mkBuilder({
   name: "VoyageOutcome",
-  backingModel: "voyage_outcome",
+  backingTable: "voyage_outcome",
   contributionMode: "Owned",
   pkField: "id"
 })
@@ -622,11 +622,229 @@ export const VoyageOutcomeSchema = mkBuilder({
     linkedEntitySchema: OwnerOutcomeSchema
   })
 
+export const EnslaverAliasBuilder = mkBuilder({
+  name: "EnslaverAlias",
+  backingTable: "enslaver_alias",
+  contributionMode: "Full",
+  pkField: "id"
+}).addText({
+  backingField: "alias",
+  label: "Alias"
+})
+
+export const EnslaverAliasSchema = EnslaverAliasBuilder.build()
+
+export const EnslaverSchema = mkBuilder({
+  name: "Enslaver",
+  backingTable: "enslaver_identity",
+  contributionMode: "Full",
+  pkField: "id"
+})
+  .addOwnedEntityList({
+    connection: {
+      relationKind: "oneToMany",
+      childBackingProp: "identity"
+    },
+    editModes: ListEditMode.All,
+    label: "Aliases",
+    linkedEntitySchema: EnslaverAliasSchema
+  })
+  .addText({
+    backingField: "principal_alias",
+    label: "Principal alias"
+  })
+  .addBool({
+    backingField: "is_natural_person",
+    label: "Is natural person",
+    defaultValue: true
+  })
+  .addNumber({
+    backingField: "birth_year",
+    label: "Birth year"
+  })
+  .addNumber({
+    backingField: "birth_month",
+    label: "Birth month"
+  })
+  .addNumber({
+    backingField: "birth_day",
+    label: "Birth day"
+  })
+  .addLinkedEntity({
+    label: "Birth place",
+    backingField: "birth_place",
+    linkedEntitySchema: Location
+  })
+  .addNumber({
+    backingField: "death_year",
+    label: "Death year"
+  })
+  .addNumber({
+    backingField: "death_month",
+    label: "Death month"
+  })
+  .addNumber({
+    backingField: "death_day",
+    label: "Death day"
+  })
+  .addLinkedEntity({
+    label: "Death place",
+    backingField: "death_place",
+    linkedEntitySchema: Location
+  })
+  .addText({
+    backingField: "father_name",
+    label: "Father name"
+  })
+  .addText({
+    backingField: "father_occupation",
+    label: "Father occupation"
+  })
+  .addText({
+    backingField: "mother_name",
+    label: "Mother name"
+  })
+  .addText({
+    backingField: "probate_date",
+    label: "Probate date"
+  })
+  .addText({
+    backingField: "will_value_pounds",
+    label: "Will value (pounds)"
+  })
+  .addText({
+    backingField: "will_value_dollars",
+    label: "Will value (dollars)"
+  })
+  .addText({
+    backingField: "will_court",
+    label: "Will court"
+  })
+  .addLinkedEntity({
+    label: "Principal location",
+    backingField: "principal_location",
+    linkedEntitySchema: Location
+  })
+  .addText({
+    backingField: "notes",
+    label: "Notes"
+  })
+  .build()
+
+/**
+ * Our schemas must form an an acyclic graph, so we create a specialized
+ * schema for EnslaverAlias which points to an Enslaver identity which then
+ * points to the schema that doesn't point back to the identity.
+ */
+export const EnslaverAliasWithIdentitySchema = EnslaverAliasBuilder.clone(
+  "EnslaverAliasWithIdentity"
+)
+  .addLinkedEntity({
+    backingField: "identity",
+    linkedEntitySchema: EnslaverSchema,
+    label: "Identity"
+  })
+  .build()
+
+export const EnslavementRelationTypeSchema = mkBuilder({
+  name: "EnslavementRelationType",
+  backingTable: "enslavement_relation_type",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({
+    label: "Relation type",
+    backingField: "name",
+    description: "A descriptive name for the type of enslavement relation"
+  })
+  .build()
+
+export const EnslaverRoleSchema = mkBuilder({
+  name: "EnslaverRole",
+  backingTable: "enslaver_role",
+  contributionMode: "ReadOnly",
+  pkField: "id"
+})
+  .addText({
+    label: "Enslaver role",
+    backingField: "name",
+    description:
+      "A descriptive name for the role of the enslaver in an enslavement relation"
+  })
+  .build()
+
+export const EnslaverRelationRoleConnectionSchema = mkBuilder({
+  name: "EnslaverRelationRoleConn",
+  backingTable: "enslaver_relation_roles",
+  contributionMode: "Owned",
+  pkField: "id",
+}).build()
+
+export const EnslaverInRelationSchema = mkBuilder({
+  name: "EnslaverInRelation",
+  backingTable: "enslaver_in_relation",
+  contributionMode: "Owned",
+  pkField: "id"
+})
+  .addLinkedEntity({
+    backingField: "enslaver_alias",
+    linkedEntitySchema: EnslaverAliasWithIdentitySchema,
+    label: "Enslaver alias"
+  })
+  .addM2MEntityList({
+    connection: {
+      relationKind: "manyToMany",
+      connectionEntity: EnslaverRelationRoleConnectionSchema.name,
+      leftSideBackingField: "enslaver_in_relation",
+      rightSideBackingField: "role"
+    },
+    label: "Roles",
+    linkedEntitySchema: EnslaverRoleSchema,
+    editModes: ListEditMode.Add | ListEditMode.Remove
+  })
+  .build()
+
+export const EnslavementRelationSchema = mkBuilder({
+  name: "EnslavementRelation",
+  backingTable: "enslavement_relation",
+  contributionMode: "Owned",
+  pkField: "id"
+})
+  .addLinkedEntity({
+    label: "Relation type",
+    backingField: "relation_type",
+    linkedEntitySchema: EnslavementRelationTypeSchema
+  })
+  .addLinkedEntity({
+    label: "Place",
+    backingField: "place",
+    linkedEntitySchema: Location
+  })
+  .addText({
+    backingField: "date",
+    label: "Date",
+    description: "Date in MM,DD,YYYY format with optional fields"
+  })
+  .addNumber({
+    backingField: "amount",
+    label: "Amount"
+  })
+  .addOwnedEntityList({
+    connection: {
+      relationKind: "oneToMany",
+      childBackingProp: "relation"
+    },
+    editModes: ListEditMode.All,
+    label: "Enslavers in relation",
+    linkedEntitySchema: EnslaverInRelationSchema
+  })
+  .build()
+
 // TODO: this is a work in progress to map the full Voyage Entity to our
 // abstractions.
 export const VoyageSchema = mkBuilder({
   name: "Voyage",
-  backingModel: "voyage",
+  backingTable: "voyage",
   contributionMode: "Full",
   pkField: "voyage_id"
 })
@@ -680,6 +898,15 @@ export const VoyageSchema = mkBuilder({
       childBackingProp: "voyage"
     }
   })
+  .addOwnedEntityList({
+    label: "Enslavement relations",
+    linkedEntitySchema: EnslavementRelationSchema,
+    editModes: ListEditMode.All,
+    connection: {
+      relationKind: "oneToMany",
+      childBackingProp: "voyage"
+    }
+  })
   .build()
 
 const SchemaIndex = AllSchemas.reduce(
@@ -698,7 +925,7 @@ export const getSchema = (name: string): EntitySchema => {
 export const AllProperties = AllSchemas.flatMap((s) => s.properties).reduce(
   (agg, p) => {
     if (agg[p.uid] !== undefined) {
-      throw new Error(`Duplicate property uid: ${p.uid} @ schema ${p.schema}`)
+      throw new Error(`Duplicate property uid: ${p.uid} @ schema ${p.schema} (dupe @ ${agg[p.uid].schema})`)
     }
     return { ...agg, [p.uid]: p }
   },

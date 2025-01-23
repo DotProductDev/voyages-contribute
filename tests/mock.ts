@@ -1,5 +1,5 @@
-import { DataResolver, DbConnection } from "../src/models/query"
-import { DbDataResolver } from "../src/backend/dataResolvers"
+import { DataResolver } from "../src/models/query"
+import { DbConnection, DbDataResolver } from "../src/backend/dataResolvers"
 import { MaterializedEntity } from "../src/models/materialization"
 import { getSchema, getSchemaProp } from "../src/models/entities"
 
@@ -49,10 +49,23 @@ export class MockDataResolver implements DataResolver {
     // Call this just so that we log the generated SQL query
     await this.resolver.fetch(query, fields)
     // Generate dummy data here.
-    const isList = query.filter.find((f) => f.operator === "IN")
+    const isList = query.filter.find((f) => f.operator === "in")
+    let mockRecord = dummyRecord
+    // For certain entities, the M2M relationship is only consistent in the //
+    // produced mock data if we modify the ids to match the entries in the
+    // connection table.
+    if (query.model === "enslaver_role") {
+      mockRecord = (f, i) => {
+        const r = dummyRecord(f, i)
+        r.id = r.id.replace("_id_", "_role_")
+        return r
+      }
+    }
     const mocked = (isList ? [1, 2, 3, 4, 5] : [1]).map((i) =>
-      dummyRecord(fields, i)
+      mockRecord(fields, i)
     )
     return mocked
   }
+
+  getLog = () => this.log
 }
