@@ -1,6 +1,15 @@
 import { EntitySchema, getSchema } from "../models/entities"
-import { MaterializedEntity } from "../models/materialization"
-import { Property } from "../models/properties"
+import {
+  MaterializedEntity,
+  NonNullFieldValue
+} from "../models/materialization"
+import {
+  EntityOwnedProperty,
+  LinkedEntityProperty,
+  ManyToManyEntityListProperty,
+  OwnedEntityListProperty,
+  Property
+} from "../models/properties"
 import { DataFilter, DataResolver } from "../models/query"
 
 const extractFields = (properties: Property[], additionalFields?: string[]) => {
@@ -81,6 +90,145 @@ interface EntityFetchOptions {
   shallow?: boolean
 }
 
+type FetchPropType<TProp extends Property> = (
+  resolver: DataResolver,
+  id: NonNullFieldValue,
+  entity: MaterializedEntity,
+  p: TProp
+) => Promise<true | Error>
+
+const entityOwnedFetch: FetchPropType<EntityOwnedProperty> = async (
+  resolver,
+  id,
+  entity,
+  p
+) => {
+  // Fetch the entity (if any) by matching the FK column in the right
+  // side entity to the PK in the left side.
+  try {
+    entity.data[p.label] = singleOrNull(
+      await fetchEntities(
+        getSchema(p.linkedEntitySchema),
+        [{ field: p.oneToOneBackingField, value: id }],
+        resolver
+      )
+    )
+    return true
+  } catch (err) {
+    return err as Error
+  }
+}
+
+const linkedEntityFetch: FetchPropType<LinkedEntityProperty> = async (
+  resolver,
+  id,
+  entity,
+  p
+) => {
+  try {
+    // Fetch the entity by its PK, whose value is a FK in the left side.
+    const linkedSchema = getSchema(p.linkedEntitySchema)
+    entity.data[p.label] = singleOrNull(
+      await fetchEntities(
+        linkedSchema,
+        [{ field: linkedSchema.pkField, value: id }],
+        resolver
+      )
+    )
+    return true
+  } catch (err) {
+    return err as Error
+  }
+}
+
+const manyToManyFetch: FetchPropType<ManyToManyEntityListProperty> = async (
+  resolver,
+  id,
+  entity,
+  p
+) => {
+  try {
+    const { connection } = p
+    const m2m = await fetchEntities(
+      getSchema(connection.connectionEntity),
+      [{ field: connection.leftSideBackingField, value: id }],
+      resolver,
+      // Ensure that we have the right side ids for later matching.
+      {
+        additionalFields: [connection.rightSideBackingField]
+      }
+    )
+    const linkedSchema = getSchema(p.linkedEntitySchema)
+    const matches = toMap(
+      await fetchEntities(
+        linkedSchema,
+        [
+          {
+            field: linkedSchema.pkField,
+            operator: "in",
+            value: m2m
+              .map((v) => v.data[connection.rightSideBackingField])
+              .filter((v) => v !== null)
+          }
+        ],
+        resolver
+      ),
+      (e) => e.entityRef.id
+    )
+    // Now every entry in the m2m relation should have a match in matches.
+    for (const item of m2m) {
+      const pkRight = item.data[connection.rightSideBackingField]
+      if (
+        !pkRight ||
+        typeof pkRight === "object" ||
+        typeof pkRight === "boolean"
+      ) {
+        return new Error(
+          `Fetch on M2M did not return an id value for the right backing field '${connection.rightSideBackingField}'`
+        )
+      }
+      const m = matches.get(pkRight)
+      if (!m) {
+        return new Error(
+          `Could not find the entity linked by an M2M: ${p.linkedEntitySchema},
+          right=${pkRight}, matches=${[...matches.values()].map((v) => JSON.stringify(v))}`
+        )
+      }
+      // Replace the key by the entity.
+      item.data[connection.rightSideBackingField] = m
+    }
+    entity.data[p.label] = m2m
+    return true
+  } catch (err) {
+    return err as Error
+  }
+}
+
+const ownedListFetch: FetchPropType<OwnedEntityListProperty> = async (
+  resolver,
+  id,
+  entity,
+  p
+) => {
+  try {
+    const { connection } = p
+    const children = await fetchEntities(
+      getSchema(p.linkedEntitySchema),
+      [
+        {
+          field: connection.childBackingProp,
+          value: id
+        }
+      ],
+      resolver
+    )
+    entity.data[p.label] = children
+    return true
+  } catch (err) {
+    return err as Error
+  }
+}
+
 export const fetchEntities = async (
   schema: EntitySchema,
   filter: DataFilter[],
@@ -92,14 +240,15 @@ export const fetchEntities = async (
   const fieldMap = extractFields(schema.properties, options?.additionalFields)
   // Ensure that the PK field is extracted.
   fieldMap.set(schema.pkField, fieldMap.get(schema.pkField) ?? "id")
-  const fetched = await resolver.fetch(
-    {
+  const fetched = await resolver.fetch({
+    query: {
       model: schema.backingTable,
       filter
     },
-    [...fieldMap.keys()]
-  )
+    fields: [...fieldMap.keys()]
+  })
   const entities: MaterializedEntity[] = []
+  const promises: Promise<true | Error>[] = []
   for (const fieldValues of fetched) {
     const id = fieldValues[schema.pkField]
     if (!id) {
@@ -114,95 +263,27 @@ export const fetchEntities = async (
         break
       }
       if (p.kind === "entityOwned") {
-        // Fetch the entity (if any) by matching the FK column in the right
-        // side entity to the PK in the left side.
-        entity.data[p.label] = singleOrNull(
-          await fetchEntities(
-            getSchema(p.linkedEntitySchema),
-            [{ field: p.oneToOneBackingField, value: id }],
-            resolver
-          )
-        )
+        promises.push(entityOwnedFetch(resolver, id, entity, p))
       } else if (p.kind === "linkedEntity") {
-        // Fetch the entity by its PK, whose value is a FK in the left side.
         const fkValue = fieldValues[p.backingField]
-        if (fkValue !== null) {
-          const linkedSchema = getSchema(p.linkedEntitySchema)
-          entity.data[p.label] = singleOrNull(
-            await fetchEntities(
-              linkedSchema,
-              [{ field: linkedSchema.pkField, value: fkValue }],
-              resolver
-            )
-          )
+        if (fkValue) {
+          promises.push(linkedEntityFetch(resolver, fkValue, entity, p))
         }
       } else if (p.kind === "m2mEntityList") {
-        const { connection } = p
-        const m2m = await fetchEntities(
-          getSchema(connection.connectionEntity),
-          [{ field: connection.leftSideBackingField, value: id }],
-          resolver,
-          // Ensure that we have the right side ids for later matching.
-          {
-            additionalFields: [connection.rightSideBackingField]
-          }
-        )
-        const linkedSchema = getSchema(p.linkedEntitySchema)
-        const matches = toMap(
-          await fetchEntities(
-            linkedSchema,
-            [
-              {
-                field: linkedSchema.pkField,
-                operator: "in",
-                value: m2m
-                  .map((v) => v.data[connection.rightSideBackingField])
-                  .filter((v) => v !== null)
-              }
-            ],
-            resolver
-          ),
-          (e) => e.entityRef.id
-        )
-        // Now every entry in the m2m relation should have a match in matches.
-        for (const item of m2m) {
-          const pkRight = item.data[connection.rightSideBackingField]
-          if (
-            !pkRight ||
-            typeof pkRight === "object" ||
-            typeof pkRight === "boolean"
-          ) {
-            throw new Error(
-              `Fetch on M2M did not return an id value for the right backing field '${connection.rightSideBackingField}'`
-            )
-          }
-          const m = matches.get(pkRight)
-          if (!m) {
-            throw new Error(
-              `Could not find the entity linked by an M2M: ${p.linkedEntitySchema},
-              right=${pkRight}, matches=${[...matches.values()].map((v) => JSON.stringify(v))}`
-            )
-          }
-          // Replace the key by the entity.
-          item.data[connection.rightSideBackingField] = m
-        }
-        entity.data[p.label] = m2m
+        promises.push(manyToManyFetch(resolver, id, entity, p))
       } else if (p.kind === "ownedEntityList") {
-        const { connection } = p
-        const children = await fetchEntities(
-          getSchema(p.linkedEntitySchema),
-          [
-            {
-              field: connection.childBackingProp,
-              value: id
-            }
-          ],
-          resolver
-        )
-        entity.data[p.label] = children
+        promises.push(ownedListFetch(resolver, id, entity, p))
       }
     }
     entities.push(entity)
+  }
+  const processed = await Promise.all(promises)
+  const errors = processed.filter((res) => res !== true)
+  if (errors.length > 0) {
+    const msg = errors.reduce((agg, e) => `${agg}${e.message}\n`, "")
+    throw new Error(
+      `fetchEntities processing had ${errors.length} errors: ${msg}`
+    )
   }
   return entities
 }

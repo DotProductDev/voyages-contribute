@@ -1,7 +1,8 @@
 import { expect, test } from "vitest"
-import { MockDataResolver } from "./mock"
+import { MockBatchResolver, MockDataResolver } from "./mock"
 import { VoyageSchema } from "../src/models/entities"
 import { fetchEntities } from "../src/backend/entityFetch"
+import { DebouncedResolver } from "../src/backend/dataResolvers"
 
 test("voyage entity fetch", async () => {
   const resolver = new MockDataResolver()
@@ -18,4 +19,26 @@ test("voyage entity fetch", async () => {
   // console.dir(result, { depth: null })
   // console.dir(resolver.getLog())
   expect(result.length).toBe(1)
+})
+
+test("voyage entity fetch with debouncing", async () => {
+  const batchResolver = new MockBatchResolver()
+  const resolver = new DebouncedResolver(batchResolver, 10)
+  const result = await fetchEntities(
+    VoyageSchema,
+    [
+      {
+        field: VoyageSchema.pkField,
+        value: 4321
+      }
+    ],
+    resolver
+  )
+  // Make sure that very few batches are produced even though the total number
+  // of queries is large.
+  expect(batchResolver.getLog().length).toBeLessThan(7)
+  expect(batchResolver.getQueryCount()).toBeGreaterThan(50)
+  expect(result.length).toBe(1)
+  // console.dir(batchResolver.getLog(), { depth: null })
+  // console.dir(result, { depth: null })
 })

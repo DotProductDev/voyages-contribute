@@ -3,7 +3,12 @@ import {
   isMaterializedEntity,
   NonNullFieldValue
 } from "../models/materialization"
-import { DataOperator, DataQuery, DataResolver } from "../models/query"
+import {
+  BatchDataResolver,
+  DataOperator,
+  DataResolver,
+  DataResolverInput
+} from "../models/query"
 
 const mapOperator = (operator?: DataOperator) => {
   if (operator === undefined || operator === "equals") {
@@ -52,7 +57,7 @@ export interface DbConnection {
 export class DbDataResolver implements DataResolver {
   public constructor(private readonly conn: DbConnection) {}
 
-  fetch: DataResolver["fetch"] = (query, fields) => {
+  fetch: DataResolver["fetch"] = ({ query, fields }) => {
     const { quoteChar: q, escape, execute } = this.conn
     const projection = fields.map((f) => `${q}${escape(f)}${q}`).join(", ")
     const where = query.filter.map(
@@ -69,28 +74,45 @@ export class DbDataResolver implements DataResolver {
   }
 }
 
-// TODO: We are probably connecting to an API for data, so we better debounce
-// queries to reduce the load.
-
-interface DataFetch {
+interface DataFetch extends DataResolverInput {
   res: (data: EntityData[]) => void
   rej: (reason?: string) => void
   id: string
-  query: DataQuery
-  fields: string[]
 }
 
-export class DebouncedApiResolver implements DataResolver {
-  private batched: DataFetch[] = []
-  private timer = 0
-  private nextId = 0
-
+export class ApiBatchResolver implements BatchDataResolver {
   public constructor(
     private readonly apiUrl: string,
     private readonly authz: string
   ) {}
 
-  fetch: DataResolver["fetch"] = (query, fields) => {
+  fetchBatch: BatchDataResolver["fetchBatch"] = async (batch) => {
+    const response = await fetch(this.apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: this.authz
+      },
+      body: JSON.stringify(batch)
+    })
+    const results: Record<string, EntityData[]> = await response.json()
+    return results
+  }
+}
+
+/**
+ * This resolver automatically batches multiple queries and dispatches them
+ * to a BatchDataResolver. Callers should make sure that fetches are not awaited
+ * immediately as this would beat the purpose of the debouncer. 
+ */
+export class DebouncedResolver implements DataResolver {
+  private batched: DataFetch[] = []
+  private timer = 0
+  private nextId = 0
+
+  public constructor(private readonly inner: BatchDataResolver, private readonly debounce: number) {}
+
+  fetch: DataResolver["fetch"] = ({ query, fields }) => {
     if (this.timer !== 0) {
       clearTimeout(this.timer)
     }
@@ -102,19 +124,11 @@ export class DebouncedApiResolver implements DataResolver {
       // Ready to send a batch to the API.
       const local = this.batched
       this.batched = []
-      const body = local.reduce(
+      const batch = local.reduce(
         (agg, { id, query, fields }) => ({ ...agg, [id]: { query, fields } }),
-        {} as Record<string, Pick<DataFetch, "query" | "fields">>
+        {} as Record<string, DataResolverInput>
       )
-      const response = await fetch(this.apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: this.authz
-        },
-        body: JSON.stringify(body)
-      })
-      const results: Record<string, EntityData[]> = await response.json() 
+      const results = await this.inner.fetchBatch(batch)
       // TODO: Handle API errors
       for (const item of local) {
         const fetched = results[item.id]
@@ -124,7 +138,7 @@ export class DebouncedApiResolver implements DataResolver {
           item.rej("API did not yield results for this query!")
         }
       }
-    }, 250)
+    }, this.debounce)
     return promise
   }
 }

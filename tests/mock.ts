@@ -1,6 +1,10 @@
-import { DataResolver } from "../src/models/query"
+import {
+  BatchDataResolver,
+  DataResolver,
+  DataResolverInput
+} from "../src/models/query"
 import { DbConnection, DbDataResolver } from "../src/backend/dataResolvers"
-import { MaterializedEntity } from "../src/models/materialization"
+import { EntityData, MaterializedEntity } from "../src/models/materialization"
 import { getSchema, getSchemaProp } from "../src/models/entities"
 
 const mockDbConnection = (log: string[]): DbConnection => ({
@@ -28,13 +32,34 @@ const dummyRecord = (fields: string[], i?: number) =>
 
 export const fillEntityWithDummies = (entity: MaterializedEntity) => {
   const schema = getSchema(entity.entityRef.schema)
-  const fields = Object.keys(entity.data)
-    .filter(label => {
-      const prop = getSchemaProp(schema, label)
-      return prop !== undefined && (prop.kind === "number" || prop.kind === "text")
-    })
+  const fields = Object.keys(entity.data).filter((label) => {
+    const prop = getSchemaProp(schema, label)
+    return (
+      prop !== undefined && (prop.kind === "number" || prop.kind === "text")
+    )
+  })
   Object.assign(entity.data, dummyRecord(fields))
   return entity
+}
+
+const mockDummyData = (input: DataResolverInput) => {
+  const { query, fields } = input
+  const isList = query.filter.find((f) => f.operator === "in")
+  let mockRecord = dummyRecord
+  // For certain entities, the M2M relationship is only consistent in the //
+  // produced mock data if we modify the ids to match the entries in the
+  // connection table.
+  if (query.model === "enslaver_role") {
+    mockRecord = (f, i) => {
+      const r = dummyRecord(f, i)
+      r.id = r.id.replace("_id_", "_role_")
+      return r
+    }
+  }
+  const mocked = (isList ? [1, 2, 3, 4, 5] : [1]).map((i) =>
+    mockRecord(fields, i)
+  )
+  return mocked
 }
 
 export class MockDataResolver implements DataResolver {
@@ -45,27 +70,35 @@ export class MockDataResolver implements DataResolver {
     Object.assign(this, makeDataResolver())
   }
 
-  fetch: DataResolver["fetch"] = async (query, fields) => {
+  fetch: DataResolver["fetch"] = async (input) => {
     // Call this just so that we log the generated SQL query
-    await this.resolver.fetch(query, fields)
+    await this.resolver.fetch(input)
     // Generate dummy data here.
-    const isList = query.filter.find((f) => f.operator === "in")
-    let mockRecord = dummyRecord
-    // For certain entities, the M2M relationship is only consistent in the //
-    // produced mock data if we modify the ids to match the entries in the
-    // connection table.
-    if (query.model === "enslaver_role") {
-      mockRecord = (f, i) => {
-        const r = dummyRecord(f, i)
-        r.id = r.id.replace("_id_", "_role_")
-        return r
-      }
-    }
-    const mocked = (isList ? [1, 2, 3, 4, 5] : [1]).map((i) =>
-      mockRecord(fields, i)
-    )
-    return mocked
+    return mockDummyData(input)
   }
+
+  getLog = () => this.log
+}
+
+export class MockBatchResolver implements BatchDataResolver {
+  private readonly log: string[] = []
+  private round = 0
+  private count = 0
+
+  fetchBatch: BatchDataResolver["fetchBatch"] = (batch) => {
+    this.round++
+    this.log.push(
+      `Round ${this.round} requested ${Object.entries(batch).length} entities`
+    )
+    const res: Record<string, EntityData[]> = {}
+    for (const [key, input] of Object.entries(batch)) {
+      ++this.count
+      res[key] = mockDummyData(input)
+    }
+    return Promise.resolve(res)
+  }
+
+  getQueryCount = () => this.count
 
   getLog = () => this.log
 }
