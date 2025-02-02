@@ -11,7 +11,7 @@ const mockDbConnection = (log: string[]): DbConnection => ({
   quoteChar: "`",
   escape: (raw, quotes) => {
     const q = quotes === true ? "'" : ""
-    return `${q}/${raw}/${q}`
+    return `${q}${raw}${q}`
   },
   execute: (q) => {
     log.push(q)
@@ -49,10 +49,10 @@ const mockDummyData = (input: DataResolverInput) => {
   // For certain entities, the M2M relationship is only consistent in the //
   // produced mock data if we modify the ids to match the entries in the
   // connection table.
-  if (query.model === "enslaver_role") {
+  if (query.model === "past_enslaverrole") {
     mockRecord = (f, i) => {
       const r = dummyRecord(f, i)
-      r.id = r.id.replace("_id_", "_role_")
+      r.id = r.id.replace("_id_", "_enslaverrole_id_")
       return r
     }
   }

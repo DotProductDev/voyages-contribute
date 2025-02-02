@@ -270,7 +270,8 @@ const applyUpdate = (
           )
           if (childProp === undefined) {
             throw new Error(
-              `Child property "${listProp.connection.childBackingProp}" not found`
+              `Child property "${listProp.connection.childBackingProp}" not found
+              on schema ${mod.ownedEntityId.schema}`
             )
           }
           const pkChange: DirectPropertyChange = {

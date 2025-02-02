@@ -2,7 +2,8 @@ import { expect, test } from "vitest"
 import { MockBatchResolver, MockDataResolver } from "./mock"
 import { VoyageSchema } from "../src/models/entities"
 import { fetchEntities } from "../src/backend/entityFetch"
-import { DebouncedResolver } from "../src/backend/dataResolvers"
+import { DbDataResolver, DebouncedResolver } from "../src/backend/dataResolvers"
+import { MySQLDb } from "./liveDb"
 
 test("voyage entity fetch", async () => {
   const resolver = new MockDataResolver()
@@ -41,4 +42,21 @@ test("voyage entity fetch with debouncing", async () => {
   expect(result.length).toBe(1)
   // console.dir(batchResolver.getLog(), { depth: null })
   // console.dir(result, { depth: null })
+})
+
+test("fetch from live db", async () => {
+  const realDb = new MySQLDb(true)
+  await realDb.init()
+  const resolver = new DbDataResolver(realDb)
+  const result = await fetchEntities(
+    VoyageSchema,
+    [
+      {
+        field: VoyageSchema.pkField,
+        value: 11586
+      }
+    ],
+    resolver
+  )
+  console.dir(result, { depth: null })
 })

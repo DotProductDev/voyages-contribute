@@ -115,7 +115,11 @@ test("materialize new voyage with edits", () => {
           {
             kind: "linked",
             property: shipNationProp.uid,
-            changed: { id: 1234, schema: NationalitySchema.name, type: "existing" }
+            changed: {
+              id: 1234,
+              schema: NationalitySchema.name,
+              type: "existing"
+            }
           }
         ]
       },
@@ -153,36 +157,50 @@ test("materialize new voyage with edits", () => {
         comments: "Adding cargo items",
         property: cargoProp.uid,
         removed: [],
-        modified: [{
-          kind: "owned",
-          property: cargoProp.uid,
-          ownedEntityId: {
-            id: "temp_cargo_123",
-            type: "new",
-            schema: VoyageCargoConnectionSchema.name
-          },
-          changes: [{
-            kind: "linked",
-            property: getSchemaProp(VoyageCargoConnectionSchema, "Cargo unit")?.uid ?? "<notfound>",
-            changed: {
-              id: 5555,
-              schema: CargoUnitSchema.name,
-              type: "existing"
-            }
-          },{
-            kind: "linked",
-            property: getSchemaProp(VoyageCargoConnectionSchema, "Cargo type")?.uid ?? "<notfound>",
-            changed: {
-              id: 7777,
-              schema: CargoTypeSchema.name,
-              type: "existing"
-            }
-          }, {
-            kind: "direct",
-            property: getSchemaProp(VoyageCargoConnectionSchema, "The amount of cargo according to the unit")?.uid ?? "<notfound>",
-            changed: 10
-          }]
-        }]
+        modified: [
+          {
+            kind: "owned",
+            property: cargoProp.uid,
+            ownedEntityId: {
+              id: "temp_cargo_123",
+              type: "new",
+              schema: VoyageCargoConnectionSchema.name
+            },
+            changes: [
+              {
+                kind: "linked",
+                property:
+                  getSchemaProp(VoyageCargoConnectionSchema, "Cargo unit")
+                    ?.uid ?? "<notfound>",
+                changed: {
+                  id: 5555,
+                  schema: CargoUnitSchema.name,
+                  type: "existing"
+                }
+              },
+              {
+                kind: "linked",
+                property:
+                  getSchemaProp(VoyageCargoConnectionSchema, "Cargo type")
+                    ?.uid ?? "<notfound>",
+                changed: {
+                  id: 7777,
+                  schema: CargoTypeSchema.name,
+                  type: "existing"
+                }
+              },
+              {
+                kind: "direct",
+                property:
+                  getSchemaProp(
+                    VoyageCargoConnectionSchema,
+                    "The amount of cargo according to the unit"
+                  )?.uid ?? "<notfound>",
+                changed: 10
+              }
+            ]
+          }
+        ]
       }
     ]
   }
@@ -231,13 +249,18 @@ test("materialize new voyage with edits", () => {
   ).toBe(1756)
   expect(getEntityByPath(modified, "Dates")?.data[voyageDaysProp.label]).toBe(
     42
-  )  
-  expect(isMaterializedEntityArray(modified.data["Cargo"]) && modified.data["Cargo"].length === 1).toBeTruthy()
+  )
+  expect(
+    isMaterializedEntityArray(modified.data["Cargo"]) &&
+      modified.data["Cargo"].length === 1
+  ).toBeTruthy()
   const cargoItem = modified.data["Cargo"]![0] as MaterializedEntity
   expect(cargoItem.state).toBe("new")
-  expect(cargoItem.data["voyage"]).toBe("new_00001")
+  expect(cargoItem.data["voyage_id"]).toBe("new_00001")
   expect(cargoItem.data["The amount of cargo according to the unit"]).toBe(10)
-  expect(cargoItem.data["Was this a commodity used to purchase enslaved people"]).toBe(false)
+  expect(
+    cargoItem.data["Was this a commodity used to purchase enslaved people"]
+  ).toBe(false)
   expect(getEntityByPath(cargoItem, "Cargo unit")?.entityRef.id).toBe(5555)
   expect(getEntityByPath(cargoItem, "Cargo type")?.entityRef.id).toBe(7777)
   // console.dir(modified, { depth: null })
