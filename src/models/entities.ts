@@ -1,4 +1,4 @@
-import { EntityLinkBaseProperty, ListEditMode, Property } from "./properties"
+import { EntityLinkBaseProperty, EntityLinkEditMode, ListEditMode, Property, PropertyAccessLevel } from "./properties"
 import { EntitySchemaBuilder } from "./schemaBuilder"
 import { lengthValidation, rangeValidation } from "./validation"
 
@@ -148,12 +148,14 @@ export const VoyageShipEntitySchema = mkBuilder({
   .addLinkedEntity({
     label: "National carrier",
     backingField: "nationality_ship_id",
-    linkedEntitySchema: NationalitySchema
+    linkedEntitySchema: NationalitySchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     label: "Ton type",
     backingField: "ton_type_id",
-    linkedEntitySchema: TonTypeSchema
+    linkedEntitySchema: TonTypeSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     label: "Tonnage of vessel",
@@ -162,7 +164,8 @@ export const VoyageShipEntitySchema = mkBuilder({
   .addLinkedEntity({
     label: "Rig of vessel",
     backingField: "rig_of_vessel_id",
-    linkedEntitySchema: RigOfVesselSchema
+    linkedEntitySchema: RigOfVesselSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     label: "Guns mounted",
@@ -175,7 +178,8 @@ export const VoyageShipEntitySchema = mkBuilder({
   .addLinkedEntity({
     label: "Construction place",
     backingField: "vessel_construction_place_id",
-    linkedEntitySchema: Location
+    linkedEntitySchema: Location,
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     label: "Year of vessel's registration",
@@ -184,12 +188,14 @@ export const VoyageShipEntitySchema = mkBuilder({
   .addLinkedEntity({
     label: "Registered place",
     backingField: "registered_place_id",
-    linkedEntitySchema: Location
+    linkedEntitySchema: Location,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     label: "Nationality",
     backingField: "imputed_nationality_id",
-    linkedEntitySchema: NationalitySchema
+    linkedEntitySchema: NationalitySchema,
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     label: "Tonnage standardized on British measured tons, 1773-1870",
@@ -206,37 +212,46 @@ export const VoyageItinerarySchema = mkBuilder({
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Port of departure",
-    backingField: "port_of_departure_id"
+    backingField: "port_of_departure_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
-    label: "First intended port of embarkation (EMBPORT)",
-    backingField: "int_first_port_emb_id"
+    label: "First intended port of embarkation",
+    description: "First intended port of embarkation (EMBPORT)",
+    backingField: "int_first_port_emb_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
-    label: "Second intended port of embarkation (EMBPORT2)",
-    backingField: "int_second_port_emb_id"
+    label: "Second intended port of embarkation",
+    description: "Second intended port of embarkation (EMBPORT2)",
+    backingField: "int_second_port_emb_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "First intended port of disembarkation (ARRPORT)",
-    backingField: "int_first_port_dis_id"
+    backingField: "int_first_port_dis_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Second intended port of disembarkation (ARRPORT2)",
-    backingField: "int_second_port_dis_id"
+    backingField: "int_second_port_dis_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Third intended port of disembarkation (ARRPORT3)",
-    backingField: "int_third_port_dis_id"
+    backingField: "int_third_port_dis_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Fourth intended port of disembarkation (ARRPORT4)",
-    backingField: "int_fourth_port_dis_id"
+    backingField: "int_fourth_port_dis_id",
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     label: "Number of ports of call prior to buying slaves (NPPRETRA)",
@@ -245,22 +260,26 @@ export const VoyageItinerarySchema = mkBuilder({
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "First place of slave purchase (PLAC1TRA)",
-    backingField: "first_place_slave_purchase_id"
+    backingField: "first_place_slave_purchase_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Second place of slave purchase (PLAC2TRA)",
-    backingField: "second_place_slave_purchase_id"
+    backingField: "second_place_slave_purchase_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Third place of slave purchase (PLAC3TRA)",
-    backingField: "third_place_slave_purchase_id"
+    backingField: "third_place_slave_purchase_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Port of call before Atlantic crossing (NPAFTTRA)",
-    backingField: "port_of_call_before_atl_crossing_id"
+    backingField: "port_of_call_before_atl_crossing_id",
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     label: "Number of ports of call in Americas prior to sale of slaves",
@@ -269,47 +288,56 @@ export const VoyageItinerarySchema = mkBuilder({
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "First place of slave landing (SLA1PORT)",
-    backingField: "first_landing_place_id"
+    backingField: "first_landing_place_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Second place of slave landing (ADPSALE1)",
-    backingField: "second_landing_place_id"
+    backingField: "second_landing_place_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Third place of slave landing (ADPSALE2)",
-    backingField: "third_landing_place_id"
+    backingField: "third_landing_place_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Place at which voyage ended (PORTRET)",
-    backingField: "place_voyage_ended_id"
+    backingField: "place_voyage_ended_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Imputed port where voyage began (PTDEPIMP)",
-    backingField: "imp_port_voyage_begin_id"
+    backingField: "imp_port_voyage_begin_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Principal place of slave purchase (MAJBUYPT)",
-    backingField: "principal_place_of_slave_purchase_id"
+    backingField: "principal_place_of_slave_purchase_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Imputed principal place of slave purchase (MJBYPTIMP)",
-    backingField: "imp_principal_place_of_slave_purchase_id"
+    backingField: "imp_principal_place_of_slave_purchase_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Principal port of slave disembarkation (MAJSELPT)",
-    backingField: "principal_port_of_slave_dis_id"
+    backingField: "principal_port_of_slave_dis_id",
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     linkedEntitySchema: Location,
     label: "Imputed principal port of slave disembarkation (MJSLPTIMP)",
-    backingField: "imp_principal_port_slave_dis_id"
+    backingField: "imp_principal_port_slave_dis_id",
+    mode: EntityLinkEditMode.Select
   })
   .build()
 
@@ -401,6 +429,7 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
     label: "Slave characteristics (imputed)",
     section: SectionCharacteristics,
     columns: slaveNumberColumns.slice(0, -1),
+    accessLevel: PropertyAccessLevel.Editor,
     rows: [
       "Imputed number at ports of purchase",
       "Imputed number at ports of landing",
@@ -451,62 +480,74 @@ export const VoyageDatesSchema = mkBuilder({
   .addLinkedEntity({
     label: "Date that voyage began (DATEDEPB,A,C)",
     backingField: "voyage_began_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date that slave purchase began (D1SLATRB,A,C)",
     backingField: "slave_purchase_began_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date that vessel left last slaving port (DLSLATRB,A,C)",
     backingField: "vessel_left_port_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date of first disembarkation of slaves (DATARR33,32,34)",
     backingField: "first_dis_of_slaves_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date vessel departed Africa (DATELEFTAFR)",
     backingField: "date_departed_africa_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date of arrival at second place of landing (DATARR37,36,38)",
     backingField: "arrival_at_second_place_landing_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date of third disembarkation of slaves (DATARR40,39,41)",
     backingField: "third_dis_of_slaves_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date of departure from last place of landing (DDEPAMB,*,C)",
     backingField: "departure_last_place_of_landing_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Date on which slave voyage completed (DATARR44,43,45)",
     backingField: "voyage_completed_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Voyage began",
     backingField: "imp_voyage_began_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Departed Africa",
     backingField: "imp_departed_africa_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
     label: "Year of arrival at port of disembarkation (YEARAM)",
     backingField: "imp_arrival_at_port_of_dis_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
   })
   .build()
 
@@ -552,12 +593,14 @@ export const VoyageCargoConnectionSchema = mkBuilder({
   .addLinkedEntity({
     backingField: "unit_id",
     label: "Cargo unit",
-    linkedEntitySchema: CargoUnitSchema
+    linkedEntitySchema: CargoUnitSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     backingField: "cargo_id",
     label: "Cargo type",
-    linkedEntitySchema: CargoTypeSchema
+    linkedEntitySchema: CargoTypeSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     backingField: "amount",
@@ -630,27 +673,32 @@ export const VoyageOutcomeSchema = mkBuilder({
   .addLinkedEntity({
     backingField: "particular_outcome_id",
     label: "Particular Outcome",
-    linkedEntitySchema: ParticularOutcomeSchema
+    linkedEntitySchema: ParticularOutcomeSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     backingField: "resistance_id",
     label: "Resistance",
-    linkedEntitySchema: ResistanceSchema
+    linkedEntitySchema: ResistanceSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     backingField: "outcome_slaves_id",
     label: "Enslaved Outcome",
-    linkedEntitySchema: EnslavedOutcomeSchema
+    linkedEntitySchema: EnslavedOutcomeSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     backingField: "vessel_captured_outcome_id",
     label: "Vessel Outcome",
-    linkedEntitySchema: VesselOutcomeSchema
+    linkedEntitySchema: VesselOutcomeSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     backingField: "outcome_owner_id",
     label: "Owner Outcome",
-    linkedEntitySchema: OwnerOutcomeSchema
+    linkedEntitySchema: OwnerOutcomeSchema,
+    mode: EntityLinkEditMode.Select
   })
 
 export const EnslaverAliasBuilder = mkBuilder({
@@ -704,7 +752,8 @@ export const EnslaverSchema = mkBuilder({
   .addLinkedEntity({
     label: "Birth place",
     backingField: "birth_place_id",
-    linkedEntitySchema: Location
+    linkedEntitySchema: Location,
+    mode: EntityLinkEditMode.Select
   })
   .addNumber({
     backingField: "death_year",
@@ -721,7 +770,8 @@ export const EnslaverSchema = mkBuilder({
   .addLinkedEntity({
     label: "Death place",
     backingField: "death_place_id",
-    linkedEntitySchema: Location
+    linkedEntitySchema: Location,
+    mode: EntityLinkEditMode.Select
   })
   .addText({
     backingField: "father_name",
@@ -754,7 +804,8 @@ export const EnslaverSchema = mkBuilder({
   .addLinkedEntity({
     label: "Principal location",
     backingField: "principal_location_id",
-    linkedEntitySchema: Location
+    linkedEntitySchema: Location,
+    mode: EntityLinkEditMode.Select
   })
   .addText({
     backingField: "notes",
@@ -773,7 +824,8 @@ export const EnslaverAliasWithIdentitySchema = EnslaverAliasBuilder.clone(
   .addLinkedEntity({
     backingField: "identity_id",
     linkedEntitySchema: EnslaverSchema,
-    label: "Identity"
+    label: "Identity",
+    mode: EntityLinkEditMode.View
   })
   .build()
 
@@ -820,7 +872,8 @@ export const EnslaverInRelationSchema = mkBuilder({
   .addLinkedEntity({
     backingField: "enslaver_alias_id",
     linkedEntitySchema: EnslaverAliasWithIdentitySchema,
-    label: "Enslaver alias"
+    label: "Enslaver alias",
+    mode: EntityLinkEditMode.Select
   })
   .addM2MEntityList({
     connection: {
@@ -844,12 +897,14 @@ export const EnslavementRelationSchema = mkBuilder({
   .addLinkedEntity({
     label: "Relation type",
     backingField: "relation_type_id",
-    linkedEntitySchema: EnslavementRelationTypeSchema
+    linkedEntitySchema: EnslavementRelationTypeSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addLinkedEntity({
     label: "Place",
     backingField: "place_id",
-    linkedEntitySchema: Location
+    linkedEntitySchema: Location,
+    mode: EntityLinkEditMode.Select
   })
   .addText({
     backingField: "date",
@@ -889,7 +944,8 @@ export const VoyageSchema = mkBuilder({
     label: "Dataset",
     backingField: "dataset",
     description: "The Dataset to which this voyage is associated",
-    notNull: true
+    notNull: true,
+    accessLevel: PropertyAccessLevel.Editor
   })
   .addEntityOwned({
     oneToOneBackingField: "voyage_id",

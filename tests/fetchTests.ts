@@ -3,7 +3,7 @@ import { MockBatchResolver, MockDataResolver } from "./mock"
 import { VoyageSchema } from "../src/models/entities"
 import { fetchEntities } from "../src/backend/entityFetch"
 import { DbDataResolver, DebouncedResolver } from "../src/backend/dataResolvers"
-import { MySQLDb } from "./liveDb"
+import { MySQLDb } from "./mysqlDb"
 
 test("voyage entity fetch", async () => {
   const resolver = new MockDataResolver()

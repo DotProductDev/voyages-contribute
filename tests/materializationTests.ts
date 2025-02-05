@@ -4,7 +4,6 @@ import {
   applyChanges,
   cloneEntity,
   expandMaterialized,
-  getChangeRefs,
   getEntity,
   isMaterializedEntity,
   isMaterializedEntityArray,
@@ -22,7 +21,7 @@ import {
   CargoUnitSchema,
   CargoTypeSchema
 } from "../src/models/entities"
-import { EntityUpdate } from "../src/models/changeSets"
+import { EntityUpdate, getChangeRefs } from "../src/models/changeSets"
 import { fillEntityWithDummies } from "./mock"
 
 const getEntityByPath = (root: MaterializedEntity, ...path: string[]) => {
@@ -116,9 +115,13 @@ test("materialize new voyage with edits", () => {
             kind: "linked",
             property: shipNationProp.uid,
             changed: {
-              id: 1234,
-              schema: NationalitySchema.name,
-              type: "existing"
+              entityRef: {
+                id: 1234,
+                schema: NationalitySchema.name,
+                type: "existing"
+              },
+              data: {},
+              state: "lazy"
             }
           }
         ]
@@ -173,9 +176,13 @@ test("materialize new voyage with edits", () => {
                   getSchemaProp(VoyageCargoConnectionSchema, "Cargo unit")
                     ?.uid ?? "<notfound>",
                 changed: {
-                  id: 5555,
-                  schema: CargoUnitSchema.name,
-                  type: "existing"
+                  entityRef: {
+                    id: 5555,
+                    schema: CargoUnitSchema.name,
+                    type: "existing"
+                  },
+                  data: {},
+                  state: "lazy"
                 }
               },
               {
@@ -184,9 +191,13 @@ test("materialize new voyage with edits", () => {
                   getSchemaProp(VoyageCargoConnectionSchema, "Cargo type")
                     ?.uid ?? "<notfound>",
                 changed: {
-                  id: 7777,
-                  schema: CargoTypeSchema.name,
-                  type: "existing"
+                  entityRef: {
+                    id: 7777,
+                    schema: CargoTypeSchema.name,
+                    type: "existing"
+                  },
+                  data: {},
+                  state: "lazy"
                 }
               },
               {

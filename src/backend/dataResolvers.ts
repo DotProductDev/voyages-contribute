@@ -107,20 +107,20 @@ export class ApiBatchResolver implements BatchDataResolver {
  */
 export class DebouncedResolver implements DataResolver {
   private batched: DataFetch[] = []
-  private timer = 0
+  private timer: NodeJS.Timeout | null = null
   private nextId = 0
 
   public constructor(private readonly inner: BatchDataResolver, private readonly debounce: number) {}
 
   fetch: DataResolver["fetch"] = ({ query, fields }) => {
-    if (this.timer !== 0) {
+    if (this.timer !== null) {
       clearTimeout(this.timer)
     }
     const promise = new Promise<EntityData[]>((res, rej) => {
       this.batched.push({ id: `q${++this.nextId}`, res, rej, query, fields })
     })
     this.timer = setTimeout(async () => {
-      this.timer = 0
+      this.timer = null
       // Ready to send a batch to the API.
       const local = this.batched
       this.batched = []
