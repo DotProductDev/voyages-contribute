@@ -46,13 +46,20 @@ const mockDummyData = (input: DataResolverInput) => {
   const { query, fields } = input
   const isList = query.filter.find((f) => f.operator === "in")
   let mockRecord = dummyRecord
-  // For certain entities, the M2M relationship is only consistent in the //
+  // For certain entities, the M2M relationship is only consistent in the
   // produced mock data if we modify the ids to match the entries in the
   // connection table.
   if (query.model === "past_enslaverrole") {
     mockRecord = (f, i) => {
       const r = dummyRecord(f, i)
       r.id = r.id.replace("_id_", "_enslaverrole_id_")
+      return r
+    }
+  }
+  if (query.model === "document_source") {
+    mockRecord = (f, i) => {
+      const r = dummyRecord(f, i)
+      r.id = r.id.replace("_id_", "_source_id_")
       return r
     }
   }

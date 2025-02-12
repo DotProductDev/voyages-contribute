@@ -20,6 +20,7 @@ test("voyage entity fetch", async () => {
   // console.dir(result, { depth: null })
   // console.dir(resolver.getLog())
   expect(result.length).toBe(1)
+  expect(VoyageSchema.getLabel(result[0].data)).toBe("Voyage #dummy_voyage_id_1")
 })
 
 test("voyage entity fetch with debouncing", async () => {

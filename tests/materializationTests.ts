@@ -86,12 +86,12 @@ test("materialize new voyage with edits", () => {
   )
   const voyageYearProp = getSchemaProp(
     VoyageDatesSchema,
-    "Year of arrival at port of disembarkation (YEARAM)"
+    "Year of arrival at port of disembarkation"
   )
   assert(voyageYearProp !== undefined, "Voyage year prop not found in schema")
   const voyageDaysProp = getSchemaProp(
     VoyageDatesSchema,
-    "Length of Middle Passage in (days) (VOYAGE)"
+    "Length of Middle Passage in (days)"
   )
   assert(voyageDaysProp !== undefined, "Voyage days prop not found in schema")
   const sparseYearProp = getSchemaProp(SparseDateSchema, "Year")
