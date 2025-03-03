@@ -6,7 +6,6 @@ import {
 import {
   EntityOwnedProperty,
   LinkedEntityProperty,
-  ManyToManyEntityListProperty,
   OwnedEntityListProperty,
   Property
 } from "../models/properties"
@@ -50,18 +49,6 @@ const bindEntity = (
   state: "original",
   entityRef: { type: "existing", schema: s.name, id: data[s.pkField] }
 })
-
-const toMap = <T>(items: T[], key: (x: T) => string | number) => {
-  const m = new Map<string | number, T>()
-  for (const item of items) {
-    const k = key(item)
-    if (m.has(k)) {
-      throw new Error(`Duplicate key value '${k}'`)
-    }
-    m.set(k, item)
-  }
-  return m
-}
 
 /**
  * Accepts only a single or no items in the array.
@@ -141,69 +128,6 @@ const linkedEntityFetch: FetchPropType<LinkedEntityProperty> = async (
   }
 }
 
-const manyToManyFetch: FetchPropType<ManyToManyEntityListProperty> = async (
-  resolver,
-  id,
-  entity,
-  p
-) => {
-  try {
-    const { connection } = p
-    const m2m = await fetchEntities(
-      getSchema(connection.connectionEntity),
-      [{ field: connection.leftSideBackingField, value: id }],
-      resolver,
-      // Ensure that we have the right side ids for later matching.
-      {
-        additionalFields: [connection.rightSideBackingField]
-      }
-    )
-    const linkedSchema = getSchema(p.linkedEntitySchema)
-    const matches = toMap(
-      await fetchEntities(
-        linkedSchema,
-        [
-          {
-            field: linkedSchema.pkField,
-            operator: "in",
-            value: m2m
-              .map((v) => v.data[connection.rightSideBackingField])
-              .filter((v) => v !== null)
-          }
-        ],
-        resolver
-      ),
-      (e) => e.entityRef.id
-    )
-    // Now every entry in the m2m relation should have a match in matches.
-    for (const item of m2m) {
-      const pkRight = item.data[connection.rightSideBackingField]
-      if (
-        !pkRight ||
-        typeof pkRight === "object" ||
-        typeof pkRight === "boolean"
-      ) {
-        return new Error(
-          `Fetch on M2M did not return an id value for the right backing field '${connection.rightSideBackingField}'`
-        )
-      }
-      const m = matches.get(pkRight)
-      if (!m) {
-        return new Error(
-          `Could not find the entity linked by an M2M: ${p.linkedEntitySchema},
-          right=${pkRight}, matches=${[...matches.values()].map((v) => JSON.stringify(v))}`
-        )
-      }
-      // Replace the key by the entity.
-      item.data[connection.rightSideBackingField] = m
-    }
-    entity.data[p.label] = m2m
-    return true
-  } catch (err) {
-    return err as Error
-  }
-}
-
 const ownedListFetch: FetchPropType<OwnedEntityListProperty> = async (
   resolver,
   id,
@@ -211,12 +135,12 @@ const ownedListFetch: FetchPropType<OwnedEntityListProperty> = async (
   p
 ) => {
   try {
-    const { connection } = p
+    const { childBackingProp } = p
     const children = await fetchEntities(
       getSchema(p.linkedEntitySchema),
       [
         {
-          field: connection.childBackingProp,
+          field: childBackingProp,
           value: id
         }
       ],
@@ -269,8 +193,6 @@ export const fetchEntities = async (
         if (fkValue) {
           promises.push(linkedEntityFetch(resolver, fkValue, entity, p))
         }
-      } else if (p.kind === "m2mEntityList") {
-        promises.push(manyToManyFetch(resolver, id, entity, p))
       } else if (p.kind === "ownedEntityList") {
         promises.push(ownedListFetch(resolver, id, entity, p))
       }
