@@ -3,7 +3,7 @@ import { MockBatchResolver, MockDataResolver } from "./mock"
 import { VoyageSchema } from "../src/models/entities"
 import { fetchEntities } from "../src/backend/entityFetch"
 import { DbDataResolver, DebouncedResolver } from "../src/backend/dataResolvers"
-import { MySQLDb } from "./mysqlDb"
+import { MySQLDb } from "../src/backend/mysqlDb"
 
 test("voyage entity fetch", async () => {
   const resolver = new MockDataResolver()
@@ -59,5 +59,6 @@ test("fetch from live db", async () => {
     ],
     resolver
   )
-  console.dir(result, { depth: null })
+  expect(result.length).toBe(1)
+  console.dir(result[0], { depth: null })
 })

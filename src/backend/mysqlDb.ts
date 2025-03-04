@@ -1,5 +1,5 @@
 import { Connection, createConnection, RowDataPacket } from "mysql2/promise"
-import { DbConnection, EscapeFunc } from "../src/backend/dataResolvers"
+import { DbConnection, EscapeFunc } from "./dataResolvers"
 
 export class MySQLDb implements DbConnection {
   private conn: Connection | null
@@ -18,6 +18,7 @@ export class MySQLDb implements DbConnection {
       database: "voyages_api"
     })
   }
+  
   escape: EscapeFunc = (s, _) => s
 
   execute: DbConnection["execute"] = async (q: string) => {
