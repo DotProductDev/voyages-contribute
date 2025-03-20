@@ -1,5 +1,5 @@
 import {
-  EntityData,
+  BaseFieldValue,
   isMaterializedEntity,
   NonNullFieldValue
 } from "../models/materialization"
@@ -7,7 +7,8 @@ import {
   BatchDataResolver,
   DataOperator,
   DataResolver,
-  DataResolverInput
+  DataResolverInput,
+  ResolvedEntityData
 } from "../models/query"
 
 const mapOperator = (operator?: DataOperator) => {
@@ -51,13 +52,13 @@ export interface DbConnection {
 
   escape: EscapeFunc
 
-  execute: (q: string) => Promise<Record<string, string | number>[]>
+  execute: (q: string) => Promise<Record<string, BaseFieldValue | null>[]>
 }
 
 export class DbDataResolver implements DataResolver {
   public constructor(private readonly conn: DbConnection) {}
 
-  fetch: DataResolver["fetch"] = ({ query, fields }) => {
+  fetch: DataResolver["fetch"] = async ({ query, fields }) => {
     const { quoteChar: q, escape, execute } = this.conn
     const projection = fields.map((f) => `${q}${escape(f)}${q}`).join(", ")
     const where = query.filter.map(
@@ -70,12 +71,15 @@ export class DbDataResolver implements DataResolver {
     const sql = `SELECT ${projection} FROM ${escape(query.model)}${
       where.length > 0 ? " WHERE " : ""
     }${where.join(" AND ")}`
-    return execute(sql)
+    const result = await execute(sql)
+    // console.dir({ query, fields }, { depth: null })
+    // console.dir(result, { depth: null })
+    return result
   }
 }
 
 interface DataFetch extends DataResolverInput {
-  res: (data: EntityData[]) => void
+  res: (data: ResolvedEntityData[]) => void
   rej: (reason?: string) => void
   id: string
 }
@@ -95,7 +99,7 @@ export class ApiBatchResolver implements BatchDataResolver {
       },
       body: JSON.stringify(batch)
     })
-    const results: Record<string, EntityData[]> = await response.json()
+    const results: Record<string, ResolvedEntityData[]> = await response.json()
     return results
   }
 }
@@ -116,7 +120,7 @@ export class DebouncedResolver implements DataResolver {
     if (this.timer !== null) {
       clearTimeout(this.timer)
     }
-    const promise = new Promise<EntityData[]>((res, rej) => {
+    const promise = new Promise<ResolvedEntityData[]>((res, rej) => {
       this.batched.push({ id: `q${++this.nextId}`, res, rej, query, fields })
     })
     this.timer = setTimeout(async () => {

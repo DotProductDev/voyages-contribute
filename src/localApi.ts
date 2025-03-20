@@ -1,3 +1,5 @@
+// This is a temporary API that will be replaced by Voyages APIs soon.
+
 import express, { Request, Response, NextFunction } from "express"
 import cors from "cors"
 import { getSchema } from "./models/entities"
@@ -6,10 +8,7 @@ import { DbDataResolver } from "./backend/dataResolvers"
 import { EntityData, MaterializedEntity } from "./models/materialization"
 import { fetchEntities } from "./backend/entityFetch"
 
-// Connect to the db.
-const db = new MySQLDb(true)
-await db.init()
-const resolver = new DbDataResolver(db)
+let resolver: DbDataResolver = null!
 
 // Create Express app
 const app = express()
@@ -102,7 +101,12 @@ router.get("/enumerate/:schema", enumSchema)
 router.get("/materialize/:schema/:id", matEntity)
 app.use(router)
 
-export const startApi = () =>
+export const startLocalApi = async () => {
+  // Connect to the db.
+  const db = new MySQLDb(true)
+  await db.init()
+  resolver = new DbDataResolver(db)
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
   })
+}

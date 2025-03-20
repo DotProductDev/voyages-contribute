@@ -1,10 +1,13 @@
 import { defineConfig } from "vite"
-import { startApi } from "./src/localApi"
-
+import { startLocalApi } from "./src/localApi"
+import { startServer } from "./src/backend/server"
 
 export default defineConfig(({ mode }) => {
-  if (mode === "api") {
-    startApi()
+  if (mode === "local-api") {
+    startLocalApi()
+  }
+  if (mode === "server") {
+    startServer()
   }
   return {
     test: {
@@ -12,4 +15,3 @@ export default defineConfig(({ mode }) => {
     }
   }
 })
-

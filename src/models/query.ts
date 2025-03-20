@@ -1,4 +1,4 @@
-import { NonNullFieldValue, EntityData } from "./materialization"
+import { NonNullFieldValue, EntityData, BaseFieldValue } from "./materialization"
 
 export type DataOperator = "equals" | "in"
 
@@ -24,14 +24,16 @@ export interface DataResolverInput {
   fields: string[]
 }
 
+export type ResolvedEntityData = EntityData<BaseFieldValue | null>
+
 /**
  * The DataResolver is responsible for getting the entity data. It can be mocked
  * for unit tests, access the database, impose a caching layer etc.
  */
 export interface DataResolver {
-  fetch: (input: DataResolverInput) => Promise<EntityData[]>
+  fetch: (input: DataResolverInput) => Promise<ResolvedEntityData[]>
 }
 
 export interface BatchDataResolver {
-  fetchBatch: (batch: Record<string, DataResolverInput>) => Promise<Record<string, EntityData[]>>
+  fetchBatch: (batch: Record<string, DataResolverInput>) => Promise<Record<string, ResolvedEntityData[]>>
 }

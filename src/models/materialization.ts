@@ -9,16 +9,16 @@ import {
 import { AllProperties, EntitySchema, getSchema } from "./entities"
 import { failedUnknown } from "./validation"
 
+export type BaseFieldValue = string | number | boolean
+
 export type NonNullFieldValue =
-  | string
-  | number
-  | boolean
+  | BaseFieldValue
   | MaterializedEntity
   | MaterializedEntity[]
 
 export type FieldValue = NonNullFieldValue | null
 
-export type EntityData = Record<string, FieldValue>
+export type EntityData<TField = FieldValue> = Record<string, TField>
 
 export interface MaterializedEntity {
   entityRef: EntityRef
