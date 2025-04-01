@@ -133,7 +133,7 @@ export class ContributionEntity implements Contribution {
 // Database connection (SQLite)
 export const AppDataSource = new DataSource({
   type: "sqlite",
-  database: "contributions.sqlite",
+  database: "/etc/data/contributions.sqlite",
   synchronize: true, // Set to false in production
   logging: true,
   entities: [

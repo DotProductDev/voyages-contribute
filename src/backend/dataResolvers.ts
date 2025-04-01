@@ -26,7 +26,7 @@ const mapValue = (
   value: NonNullFieldValue | NonNullFieldValue[]
 ): string => {
   if (Array.isArray(value)) {
-    return `(${value.map((v) => mapValue(escape, v)).join(", ")})`
+    return `(${value.map((v: NonNullFieldValue) => mapValue(escape, v)).join(", ")})`
   }
   if (typeof value === "number") {
     // Numbers do not require escaping or quotes.

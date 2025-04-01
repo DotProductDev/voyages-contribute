@@ -1,11 +1,30 @@
 {
-  "name": "contribute",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@dotproductdev/voyages-contribute",
+  "private": false,
+  "version": "0.1.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DotProductDev/voyages-contribute.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": [
+    "dist/"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build-frontend": "tsc --p ./tsconfig-frontend.json && vite build --mode frontend --outDir output/frontend",
+    "build-server": "tsc && vite build --mode server --outDir output/server",
+    "pack": "npm run build-frontend && node scripts/build.js && npm pack ./output/frontend --pack-destination output/",
     "preview": "vite preview",
     "local-api": "vite --mode local-api",
     "server": "vite --mode server",
@@ -16,24 +35,24 @@
   "devDependencies": {
     "@eslint/compat": "^1.2.7",
     "@types/cors": "^2.8.17",
-    "@types/dotenv": "^8.2.3",
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.13.10",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
-    "cors": "^2.8.5",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.3",
-    "express": "^4.21.2",
     "mysql2": "^3.14.0",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2",
     "vite": "^6.2.2",
+    "vite-plugin-dts": "^4.5.3",
     "vitest": "^3.0.9"
+  },
+  "libDependencies": {
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
@@ -43,6 +62,8 @@
     "reflect-metadata": "^0.2.2",
     "sqlite3": "^5.1.7",
     "typeorm": "^0.3.21",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
   }
 }

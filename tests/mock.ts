@@ -4,7 +4,7 @@ import {
   DataResolverInput
 } from "../src/models/query"
 import { DbConnection, DbDataResolver } from "../src/backend/dataResolvers"
-import { EntityData, MaterializedEntity } from "../src/models/materialization"
+import { BaseFieldValue, EntityData, MaterializedEntity } from "../src/models/materialization"
 import { getSchema, getSchemaProp } from "../src/models/entities"
 
 const mockDbConnection = (log: string[]): DbConnection => ({
@@ -97,7 +97,7 @@ export class MockBatchResolver implements BatchDataResolver {
     this.log.push(
       `Round ${this.round} requested ${Object.entries(batch).length} entities`
     )
-    const res: Record<string, EntityData[]> = {}
+    const res: Record<string, EntityData<BaseFieldValue | null>[]> = {}
     for (const [key, input] of Object.entries(batch)) {
       ++this.count
       res[key] = mockDummyData(input)
