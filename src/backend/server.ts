@@ -1,17 +1,31 @@
-import express, { Request, Response, NextFunction } from "express"
+import express, {
+  Request,
+  Response,
+  NextFunction,
+  ErrorRequestHandler
+} from "express"
 import { initDatabase, DatabaseService } from "./db"
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import cors from "cors"
 import morgan from "morgan"
 import { ContributionStatus } from "../models/contribution"
+import { ApiBatchResolver, DebouncedResolver } from "./dataResolvers"
+import { DataResolver } from "../models/query"
+import { getSchema } from "../models/entities"
+import { EntityData, MaterializedEntity } from "../models/materialization"
+import { fetchEntities } from "./entityFetch"
 // Load environment variables
 dotenv.config()
 
 // Initialize the app
 const app = express()
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 7127
 const JWT_SECRET = process.env.JWT_SECRET || "dummy-secret"
+
+const VOYAGES_API_DATA_URL =
+  process.env.VOYAGES_API_DATA_URL || "http://127.0.0.1:8000/contrib/data"
+const VOYAGES_API_AUTH_TOKEN = process.env.VOYAGES_API_AUTH_TOKEN || ""
 
 // Local debug JWT:
 // eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiV2ViVUkiLCJJc3N1ZXIiOiJJc3N1ZXIiLCJVc2VybmFtZSI6IkNvbnRyaWJ1dGVBcHAiLCJleHAiOjM5NTE0NzM0NzIsImlhdCI6MTc0MjQ4NDY3Mn0.11NiAwJt59AyIUF4gO04IUr8earCFQPsQPVXyeMydD0
@@ -23,9 +37,15 @@ app.use(morgan("dev"))
 
 // Database service
 let dbService: DatabaseService
+let resolver: DataResolver
 
 // JWT authentication middleware
 const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
+  if (JWT_SECRET === "dummy-secret") {
+    // TODO: remove this when auth is implemented.
+    next()
+    return
+  }
   const authHeader = req.headers.authorization
 
   if (!authHeader) {
@@ -197,6 +217,90 @@ app.delete("/contributions/:id", authenticateJWT, async (req, res) => {
   }
 })
 
+app.get(
+  "/enumerate/:schema",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schema = getSchema(req.params.schema)
+      const fields = schema.properties.filter(
+        (p) => p.kind === "text" || p.kind === "number"
+      )
+      const map = fields.reduce(
+        (d, f) => {
+          d[f.backingField] = f.label
+          return d
+        },
+        {} as Record<string, string>
+      )
+      const data = await resolver.fetch({
+        query: {
+          model: schema.backingTable,
+          filter: []
+        },
+        fields: [...fields.map((p) => p.backingField), schema.pkField]
+      })
+      res.status(200).json(
+        data.map((item) => {
+          // Remap fields
+          const conv: EntityData = {}
+          for (const [key, val] of Object.entries(item)) {
+            conv[map[key] ?? key] = val
+          }
+          return {
+            entityRef: {
+              type: "existing",
+              id: item[schema.pkField],
+              schema: schema.name
+            },
+            data: conv,
+            state: "lazy"
+          } as MaterializedEntity
+        })
+      )
+    } catch (error) {
+      next(error)
+    }
+  }
+)
+
+app.get(
+  "/materialize/:schema/:id",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schema = getSchema(req.params.schema)
+      const result = await fetchEntities(
+        schema,
+        [
+          {
+            field: schema.pkField,
+            value: req.params.id
+          }
+        ],
+        resolver
+      )
+      if (result.length !== 1) {
+        res.status(404)
+      } else {
+        res.status(200).json(result[0])
+      }
+    } catch (error) {
+      next(error)
+    }
+  }
+)
+
+const errorHandler: ErrorRequestHandler = (
+  err: Error,
+  _r: Request,
+  res: Response,
+  _n: NextFunction
+): void => {
+  console.error(err.stack)
+  res.status(500).send(`${err}`)
+}
+
+app.use(errorHandler)
+
 // Start the server
 export const startServer = async () => {
   try {
@@ -206,6 +310,10 @@ export const startServer = async () => {
 
     // Create database service
     dbService = new DatabaseService()
+    resolver = new DebouncedResolver(
+      new ApiBatchResolver(VOYAGES_API_DATA_URL, VOYAGES_API_AUTH_TOKEN),
+      250
+    )
 
     // Start Express server
     app.listen(PORT, () => {

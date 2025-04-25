@@ -26,8 +26,7 @@
     "build-server": "tsc && vite build --mode server --outDir output/server",
     "pack": "npm run build-frontend && node scripts/build.js && npm pack ./output/frontend --pack-destination output/",
     "preview": "vite preview",
-    "local-api": "vite --mode local-api",
-    "server": "vite --mode server",
+    "server": "node output/server/server.js",
     "test": "vitest",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix"

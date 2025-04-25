@@ -1026,7 +1026,7 @@ export const EnslavedSchema = mkBuilder({
   })
   .addNumber({
     label: "Gender",
-    backingField: "gender"
+    backingField: "gender_int"
   })
   .build()
 

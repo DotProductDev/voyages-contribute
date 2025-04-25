@@ -12,3 +12,7 @@ Node.js, to support storing and retrieving the contributions.
 `npm run test` should run all unit tests in the project. Some may require a
 live database connection and might fail if you do not have that setup in the
 local environment.
+
+## Running the server
+
+npm run build-server && node ./output/server/server.js

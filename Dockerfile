@@ -1,5 +1,5 @@
 # Build stage
-FROM node:23-alpine AS build
+FROM node:slim AS build
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build-server
 
 # Production stage
-FROM node:23-alpine
+FROM node:slim
 
 # Set working directory
 WORKDIR /usr/src/app

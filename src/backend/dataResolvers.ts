@@ -91,30 +91,42 @@ export class ApiBatchResolver implements BatchDataResolver {
   ) {}
 
   fetchBatch: BatchDataResolver["fetchBatch"] = async (batch) => {
+    // console.log(this.apiUrl)
+    // console.dir(batch, { depth: null })
+    const headers: Record<string, string> = {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    }
+    if (this.authz) {
+      headers.Authorization = this.authz
+    }
     const response = await fetch(this.apiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: this.authz
-      },
+      headers,
       body: JSON.stringify(batch)
     })
-    const results: Record<string, ResolvedEntityData[]> = await response.json()
-    return results
+    const results: Record<string, ResolvedEntityData[]> | { error: string } = await response.json()
+    if (results.error) {
+      throw new Error(`API error: ${results.error}`)
+    }
+    return results as Record<string, ResolvedEntityData[]>
   }
 }
 
 /**
  * This resolver automatically batches multiple queries and dispatches them
  * to a BatchDataResolver. Callers should make sure that fetches are not awaited
- * immediately as this would beat the purpose of the debouncer. 
+ * immediately as this would beat the purpose of the debouncer.
  */
 export class DebouncedResolver implements DataResolver {
   private batched: DataFetch[] = []
   private timer: NodeJS.Timeout | null = null
   private nextId = 0
 
-  public constructor(private readonly inner: BatchDataResolver, private readonly debounce: number) {}
+  public constructor(
+    private readonly inner: BatchDataResolver,
+    private readonly debounce: number
+  ) {}
 
   fetch: DataResolver["fetch"] = ({ query, fields }) => {
     if (this.timer !== null) {
@@ -132,15 +144,19 @@ export class DebouncedResolver implements DataResolver {
         (agg, { id, query, fields }) => ({ ...agg, [id]: { query, fields } }),
         {} as Record<string, DataResolverInput>
       )
-      const results = await this.inner.fetchBatch(batch)
-      // TODO: Handle API errors
-      for (const item of local) {
-        const fetched = results[item.id]
-        if (fetched) {
-          item.res(fetched)
-        } else {
-          item.rej("API did not yield results for this query!")
+      try {
+        const results = await this.inner.fetchBatch(batch)
+        // TODO: Handle API errors
+        for (const item of local) {
+          const fetched = results[item.id]
+          if (fetched) {
+            item.res(fetched)
+          } else {
+            item.rej("API did not yield results for this query!")
+          }
         }
+      } catch (err) {
+        local[0].rej((err as Error).message)
       }
     }, this.debounce)
     return promise

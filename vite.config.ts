@@ -1,17 +1,10 @@
 import { defineConfig } from "vite"
-import { startLocalApi } from "./src/localApi"
 import dts from "vite-plugin-dts"
 import { resolve } from "path"
 
 export default defineConfig(({ mode }) => {
-  if (mode === "local-api") {
-    // TODO: remove this when possible.
-    // This should be a temporary solution until the Voyages API is extended to
-    // support our use case.
-    startLocalApi()
-  }
   if (mode === "server") {
-    // Development mode local Contribute-API.
+    // Contribute-API server.
     return {
       build: {
         // Output directory for the build
