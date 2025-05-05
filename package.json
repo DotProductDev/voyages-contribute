@@ -1,7 +1,7 @@
 {
   "name": "@dotproductdev/voyages-contribute",
   "private": false,
-  "version": "0.1.0",
+  "version": "0.2.1",
   "type": "module",
   "repository": {
     "type": "git",
@@ -25,8 +25,9 @@
     "build-frontend": "tsc --p ./tsconfig-frontend.json && vite build --mode frontend --outDir output/frontend",
     "build-server": "tsc && vite build --mode server --outDir output/server",
     "pack": "npm run build-frontend && node scripts/build.js && npm pack ./output/frontend --pack-destination output/",
+    "publish-package": "npm run pack && npm publish ./output/frontend",
     "preview": "vite preview",
-    "server": "node output/server/server.js",
+    "server": "npm run build-server && node output/server/server.js",
     "test": "vitest",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix"

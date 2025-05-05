@@ -175,6 +175,13 @@ export const getEntity = (
         )} in collection`
       )
     }
+  } else if (entityRef.type === "new" && lazy !== undefined) {
+    // Update the match with most recent changes.
+    grp[entityRef.id] = match = {
+      entityRef,
+      data: lazy,
+      state: "new"
+    }
   }
   return match
 }

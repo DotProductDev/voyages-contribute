@@ -66,7 +66,8 @@ export interface EntityLinkBaseProperty extends BaseProperty {
 export enum EntityLinkEditMode {
   Select = 0,
   Own = 1,
-  View = 2
+  View = 2,
+  Create = 3
 } 
 
 export interface LinkedEntityProperty extends EntityLinkBaseProperty {

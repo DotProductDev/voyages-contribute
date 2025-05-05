@@ -920,6 +920,15 @@ export const EnslaverSchema = mkBuilder({
   })
   .build()
 
+export const EnslaverAliasWithFKSchema = EnslaverAliasBuilder.clone(
+  "EnslaverAliasWithFK"
+)
+  .addNumber({
+    backingField: "identity_id",
+    label: "IdentityId"
+  })
+  .build()
+
 /**
  * Our schemas must form an an acyclic graph, so we create a specialized
  * schema for EnslaverAlias which points to an Enslaver identity which then
@@ -932,7 +941,7 @@ export const EnslaverAliasWithIdentitySchema = EnslaverAliasBuilder.clone(
     backingField: "identity_id",
     linkedEntitySchema: EnslaverSchema,
     label: "Identity",
-    mode: EntityLinkEditMode.View
+    mode: EntityLinkEditMode.Create
   })
   .build()
 
@@ -998,7 +1007,7 @@ export const EnslaverInRelationSchema = mkBuilder({
     backingField: "enslaver_alias_id",
     linkedEntitySchema: EnslaverAliasWithIdentitySchema,
     label: "Enslaver alias",
-    mode: EntityLinkEditMode.Select
+    mode: EntityLinkEditMode.Create
   })
   .addOwnedEntityList({
     childBackingProp: "enslaverinrelation_id",
@@ -1073,11 +1082,12 @@ export const EnslavementRelationSchema = mkBuilder({
     mode: EntityLinkEditMode.Select
   })
   // TODO: it looks like we also have a sparse date for this field?? Check with John.
-  .addText({
-    backingField: "date",
-    label: "Date",
-    description: "Date in MM,DD,YYYY format with optional fields"
-  })
+  // Commented out for now, if it is decided it is not needed, remove the field.
+  // .addText({
+  //   backingField: "date",
+  //   label: "Date",
+  //   description: "Date in MM,DD,YYYY format with optional fields"
+  // })
   .addNumber({
     backingField: "amount",
     label: "Amount"

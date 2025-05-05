@@ -266,20 +266,22 @@ app.get(
 app.get(
   "/materialize/:schema/:id",
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { schema: schemaName, id } = req.params
+    // console.log(`Materializing entity ${schemaName} id ${id}`)
     try {
-      const schema = getSchema(req.params.schema)
+      const schema = getSchema(schemaName)
       const result = await fetchEntities(
         schema,
         [
           {
             field: schema.pkField,
-            value: req.params.id
+            value: id
           }
         ],
         resolver
       )
       if (result.length !== 1) {
-        res.status(404)
+        res.status(404).json("Entity not found")
       } else {
         res.status(200).json(result[0])
       }
@@ -312,7 +314,7 @@ export const startServer = async () => {
     dbService = new DatabaseService()
     resolver = new DebouncedResolver(
       new ApiBatchResolver(VOYAGES_API_DATA_URL, VOYAGES_API_AUTH_TOKEN),
-      250
+      50
     )
 
     // Start Express server

@@ -111,5 +111,11 @@ export class EntitySchemaBuilder {
   }
 
   clone = (name: string) =>
-    new EntitySchemaBuilder({ ...this.info, name }, this.built, [...this.props.map(p => ({...p, uid: `${p.uid}_${name}`}))])
+    new EntitySchemaBuilder({ ...this.info, name }, this.built, [
+      ...this.props.map((p) => ({ ...p, uid: `${p.uid}_${name}`, schema: name }))
+    ])
+
+  setInfo = (
+    info: Partial<Omit<EntitySchema, "properties">>
+  ): EntitySchemaBuilder => ({ ...this, info: { ...this.info, ...info } })
 }

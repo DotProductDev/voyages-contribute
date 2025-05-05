@@ -171,6 +171,9 @@ export const fetchEntities = async (
     },
     fields: [...fieldMap.keys()]
   })
+  if (fetched.length === 0) {
+    return []
+  }
   const entities: MaterializedEntity[] = []
   const promises: Promise<true | Error>[] = []
   for (const fieldValues of fetched) {
@@ -202,7 +205,7 @@ export const fetchEntities = async (
   const processed = await Promise.all(promises)
   const errors = processed.filter((res) => res !== true)
   if (errors.length > 0) {
-    const msg = errors.reduce((agg, e) => `${agg}${e.message}\n`, "")
+    const msg = errors.reduce((agg, e) => `${agg}${e}\n`, "")
     throw new Error(
       `fetchEntities processing had ${errors.length} errors: ${msg}`
     )

@@ -49,7 +49,7 @@ export const areMatch = (a: EntityRef, b: EntityRef) =>
 export interface LinkedEntitySelectionChange extends PropertyChangeBase {
   readonly kind: "linked"
   /**
-   * The id of the selected entity in the change.
+   * The materialized entity of the change (may be lazy).
    */
   changed: MaterializedEntity | null
   /**
