@@ -1,5 +1,6 @@
 import { AllProperties } from "./entities"
 import {
+  cloneEntity,
   FieldValue,
   isMaterializedEntity,
   isMaterializedEntityArray,
@@ -60,7 +61,7 @@ export interface LinkedEntitySelectionChange extends PropertyChangeBase {
 
 export interface OwnedEntityChange extends PropertyChangeBase {
   readonly kind: "owned"
-  ownedEntityId: EntityRef
+  ownedEntity: MaterializedEntity
   /**
    * The changes made to the owned entity.
    */
@@ -170,7 +171,7 @@ const validateAndGetProperty = <T extends PropertyChange>(
   }
   if (isOwnedEntityChange(change)) {
     const ls = (prop as LinkedEntityProperty).linkedEntitySchema
-    const ss = change.ownedEntityId.schema
+    const ss = change.ownedEntity.entityRef.schema
     if (ls !== ss) {
       throw new Error(
         `Owned changed entity "${ss}" is different than its corresponding property schema "${ls}"`
@@ -214,12 +215,12 @@ export const getChangeRefs = (change: EntityChange): EntityRef[] => {
           result.push(c.changed.entityRef)
         }
       } else if (c.kind === "owned") {
-        result.push(c.ownedEntityId)
+        result.push(c.ownedEntity.entityRef)
         recurse(c.changes)
       } else if (c.kind === "ownedList") {
         result.push(...c.removed)
         for (const mod of c.modified) {
-          result.push(mod.ownedEntityId)
+          result.push(mod.ownedEntity.entityRef)
         }
       } else {
         throw failedUnknown("entity change", c)
@@ -280,7 +281,7 @@ export const mergePropertyChange = <TChange extends PropertyChange>(
   }
   if (first.kind === "owned") {
     const s = second as OwnedEntityChange
-    if (!areMatch(first.ownedEntityId, s.ownedEntityId)) {
+    if (!areMatch(first.ownedEntity.entityRef, s.ownedEntity.entityRef)) {
       throw new Error("Cannot merge updates for different owned entities")
     }
     // Match changed properties.
@@ -303,7 +304,8 @@ const mergeEntityChange = (
       ((c.kind === "direct" || c.kind === "table" || c.kind === "linked") &&
         existing > 0)
     ) {
-      changes.splice(0, 0, clonePropChange(c))
+      const idx = existing < 0 ? changes.length : existing
+      changes[idx] = clonePropChange(c)
     } else {
       changes[existing] = mergePropertyChange(changes[existing], c)
     }
@@ -394,7 +396,7 @@ const clonePropChange = <TProp extends PropertyChange>(c: TProp): TProp => {
   if (c.kind === "owned") {
     return {
       ...c,
-      ownedEntityId: { ...c.ownedEntityId },
+      ownedEntity: cloneEntity(c.ownedEntity),
       changes: c.changes.map(clonePropChange)
     }
   }
@@ -404,7 +406,7 @@ const clonePropChange = <TProp extends PropertyChange>(c: TProp): TProp => {
       removed: c.removed.map((r) => ({ ...r })),
       modified: c.modified.map((m) => ({
         ...m,
-        ownedEntityId: { ...m.ownedEntityId },
+        ownedEntity: cloneEntity(m.ownedEntity),
         changes: m.changes.map(clonePropChange)
       }))
     }
@@ -483,7 +485,7 @@ export const combineChanges = (
         updatedEntries.push({
           type: "update" as const,
           changes: ownedChanges,
-          entityRef: uc.ownedEntityId,
+          entityRef: uc.ownedEntity.entityRef,
           order
         })
         u.changes.splice(i, 1)
@@ -494,7 +496,7 @@ export const combineChanges = (
           updatedEntries.push({
             type: "update" as const,
             changes: m.changes,
-            entityRef: m.ownedEntityId,
+            entityRef: m.ownedEntity.entityRef,
             order
           })
         }
@@ -654,7 +656,7 @@ const dropRefsFromChange = (
     return undefined
   }
   if (p.kind === "owned") {
-    if (matchAnyRef(p.ownedEntityId, refs)) {
+    if (matchAnyRef(p.ownedEntity.entityRef, refs)) {
       return undefined
     }
     if (p.changes.find((ch) => ch !== dropRefsFromChange(ch, refs))) {
@@ -670,11 +672,11 @@ const dropRefsFromChange = (
   if (p.kind === "ownedList") {
     if (
       p.removed.find((r) => matchAnyRef(r, refs)) ||
-      p.modified.find((m) => matchAnyRef(m.ownedEntityId, refs))
+      p.modified.find((m) => matchAnyRef(m.ownedEntity.entityRef, refs))
     ) {
       const next = {
         ...p,
-        modified: p.modified.filter((m) => !matchAnyRef(m.ownedEntityId, refs)),
+        modified: p.modified.filter((m) => !matchAnyRef(m.ownedEntity.entityRef, refs)),
         removed: p.removed.filter((r) => !matchAnyRef(r, refs))
       }
       return next.modified.length === 0 && next.removed.length === 0

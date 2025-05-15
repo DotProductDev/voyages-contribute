@@ -189,7 +189,7 @@ export const getEntity = (
 const listFind = (list: MaterializedEntity[], entityRef: EntityRef) =>
   list.findIndex((e) => areMatch(e.entityRef, entityRef))
 
-export const applyUpdate = (
+const applyUpdateInternal = (
   target: MaterializedEntity,
   data: MaterializedData,
   changes: PropertyChange[]
@@ -215,12 +215,17 @@ export const applyUpdate = (
         ? getEntity(data, c.changed)
         : c.changed
     } else if (c.kind === "linked") {
-      target.data[prop.label] =
-        c.changed === null
-          ? null
-          : getEntity(data, c.changed.entityRef, c.changed.data)
+      target.data[prop.label] = null
+      if (c.changed !== null) {
+        const linked = getEntity(data, c.changed.entityRef, c.changed.data)
+        linked.data = { ...linked.data, ...c.changed.data }
+        if (c.linkedChanges) {
+          applyUpdateInternal(linked, data, c.linkedChanges)
+        }
+        target.data[prop.label] = linked
+      }
     } else if (c.kind === "owned") {
-      const owned = getEntity(data, c.ownedEntityId)
+      const owned = getEntity(data, c.ownedEntity.entityRef, c.ownedEntity.data)
       const prev = target.data[prop.label]
       // Make sure that if there is already an owned entity, that the same
       // entity is updated. If a new owned entity is required, first a direct
@@ -230,17 +235,17 @@ export const applyUpdate = (
         if (!isMaterializedEntity(prev)) {
           throw new Error("Expected an entity for owned property update")
         }
-        if (!areMatch(prev.entityRef, c.ownedEntityId)) {
+        if (!areMatch(prev.entityRef, c.ownedEntity.entityRef)) {
           throw new Error(
             `An owned entity is already set for ${
               prop.label
             }: old => ${JSON.stringify(prev.entityRef)}, new => ${
-              c.ownedEntityId.id
+              c.ownedEntity.entityRef.id
             }`
           )
         }
       }
-      target.data[prop.label] = applyUpdate(owned, data, c.changes)
+      target.data[prop.label] = applyUpdateInternal(owned, data, c.changes)
     } else if (c.kind === "ownedList") {
       const list = target.data[prop.label]
       if (!isMaterializedEntityArray(list)) {
@@ -253,7 +258,10 @@ export const applyUpdate = (
         const idx = listFind(list, rm)
         if (idx < 0) {
           // This may be a new item item, so the changes cancel each other.
-          if (rm.type === "new" && c.modified.find(m => areMatch(m.ownedEntityId, rm))) {
+          if (
+            rm.type === "new" &&
+            c.modified.find((m) => areMatch(m.ownedEntity.entityRef, rm))
+          ) {
             remNew.push(rm)
             continue
           }
@@ -263,11 +271,15 @@ export const applyUpdate = (
       }
       const ownerSchema = getSchema(target.entityRef.schema)
       for (const mod of c.modified) {
-        if (remNew.find(rm => areMatch(mod.ownedEntityId, rm))) {
+        if (remNew.find((rm) => areMatch(mod.ownedEntity.entityRef, rm))) {
           continue
         }
-        const os = getSchema(mod.ownedEntityId.schema)
-        const ownedEntity = getEntity(data, mod.ownedEntityId)
+        const os = getSchema(mod.ownedEntity.entityRef.schema)
+        const ownedEntity = getEntity(
+          data,
+          mod.ownedEntity.entityRef,
+          mod.ownedEntity.data
+        )
         const listProp = ownerSchema.properties.find(
           (p) => p.uid === c.property
         )
@@ -282,7 +294,7 @@ export const applyUpdate = (
         if (childProp === undefined) {
           throw new Error(
             `Child property "${listProp.childBackingProp}" not found
-              on schema ${mod.ownedEntityId.schema}`
+              on schema ${mod.ownedEntity.entityRef.schema}`
           )
         }
         const pkChange: DirectPropertyChange = {
@@ -290,9 +302,9 @@ export const applyUpdate = (
           property: childProp.uid,
           changed: target.entityRef.id
         }
-        applyUpdate(ownedEntity, data, [...mod.changes, pkChange])
-        const idx = listFind(list, mod.ownedEntityId)
-        if (idx < 0 && mod.ownedEntityId.type !== "new") {
+        applyUpdateInternal(ownedEntity, data, [...mod.changes, pkChange])
+        const idx = listFind(list, mod.ownedEntity.entityRef)
+        if (idx < 0 && mod.ownedEntity.entityRef.type !== "new") {
           throw new Error("Invalid owned list update")
         }
         if (idx < 0) {
@@ -301,12 +313,21 @@ export const applyUpdate = (
           list[idx] = ownedEntity
         }
       }
+    } else if (c.kind === "table") {
+      for (const [key, value] of Object.entries(c.changes)) {
+        target.data[key] = value
+      }
     } else {
       throw failedUnknown("property change", c)
     }
   }
   return target
 }
+
+export const applyUpdate = (
+  target: MaterializedEntity,
+  changes: PropertyChange[]
+) => applyUpdateInternal(target, expandMaterialized(target), changes)
 
 /**
  * Apply entity changes to the materialized data.
@@ -328,7 +349,7 @@ export const applyChanges = (
     } else if (change.type === "undelete") {
       match.state = change.entityRef.type === "new" ? "new" : "modified"
     } else if (change.type === "update") {
-      applyUpdate(match, data, change.changes)
+      applyUpdateInternal(match, data, change.changes)
     } else {
       throw failedUnknown("entity change", change)
     }

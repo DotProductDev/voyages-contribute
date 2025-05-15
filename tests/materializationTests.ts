@@ -19,9 +19,14 @@ import {
   SparseDateSchema,
   VoyageCargoConnectionSchema,
   CargoUnitSchema,
-  CargoTypeSchema
+  CargoTypeSchema,
+  AllProperties
 } from "../src/models/entities"
-import { EntityUpdate, getChangeRefs } from "../src/models/changeSets"
+import {
+  EntityChange,
+  EntityUpdate,
+  getChangeRefs
+} from "../src/models/changeSets"
 import { fillEntityWithDummies } from "./mock"
 
 const getEntityByPath = (root: MaterializedEntity, ...path: string[]) => {
@@ -104,7 +109,7 @@ test("materialize new voyage with edits", () => {
         kind: "owned",
         comments: "changing ship info",
         property: shipProp.uid,
-        ownedEntityId: ship.entityRef,
+        ownedEntity: cloneEntity(ship),
         changes: [
           {
             kind: "direct",
@@ -130,15 +135,19 @@ test("materialize new voyage with edits", () => {
         kind: "owned",
         comments: "setting a year for the voyage",
         property: datesProp.uid,
-        ownedEntityId: dates.entityRef,
+        ownedEntity: cloneEntity(dates),
         changes: [
           {
             kind: "owned",
             property: voyageYearProp.uid,
-            ownedEntityId: {
-              id: "temp_987654321",
-              schema: SparseDateSchema.name,
-              type: "new"
+            ownedEntity: {
+              entityRef: {
+                id: "temp_987654321",
+                schema: SparseDateSchema.name,
+                type: "new"
+              },
+              data: {},
+              state: "new"
             },
             changes: [
               {
@@ -164,10 +173,14 @@ test("materialize new voyage with edits", () => {
           {
             kind: "owned",
             property: cargoProp.uid,
-            ownedEntityId: {
-              id: "temp_cargo_123",
-              type: "new",
-              schema: VoyageCargoConnectionSchema.name
+            ownedEntity: {
+              entityRef: {
+                id: "temp_cargo_123",
+                schema: VoyageCargoConnectionSchema.name,
+                type: "new"
+              },
+              data: {},
+              state: "new"
             },
             changes: [
               {
@@ -248,6 +261,7 @@ test("materialize new voyage with edits", () => {
   applyChanges(data, [change])
   // console.dir(data, { depth: null })
   const modified = getEntity(data, voyage.entityRef)
+  // console.dir(modified, { depth: null })
   expect(getEntityByPath(voyage, "Ship")?.data["Name of vessel"]).toBe("")
   expect(getEntityByPath(modified, "Ship")?.data["Name of vessel"]).toBe(
     "Santa Maria"
@@ -275,4 +289,988 @@ test("materialize new voyage with edits", () => {
   expect(getEntityByPath(cargoItem, "Cargo unit")?.entityRef.id).toBe(5555)
   expect(getEntityByPath(cargoItem, "Cargo type")?.entityRef.id).toBe(7777)
   // console.dir(modified, { depth: null })
+})
+
+const voyage1234: MaterializedEntity = {
+  data: {
+    "Voyage ID": 1234,
+    Dataset: 0,
+    Cargo: [],
+    Crew: {
+      data: {
+        "Crew at voyage outset": null,
+        "Crew at departure from last port of slave purchase": null,
+        "Crew at first landing of slaves": null,
+        "Crew when return voyage begin": null,
+        "Crew at end of voyage": null,
+        "Number of crew unspecified": null,
+        "Crew died before first place of trade in Africa": null,
+        "Crew died while ship was on African coast": null,
+        "Crew died during Middle Passage": null,
+        "Crew died in the Americas": null,
+        "Crew died on return voyage": null,
+        "Crew died during complete voyage": null,
+        "Total number of crew deserted": null,
+        id: 1217
+      },
+      state: "original",
+      entityRef: {
+        type: "existing",
+        schema: "VoyageCrew",
+        id: 1217
+      }
+    },
+    "Slave Numbers": {
+      data: {
+        SlavesIntendedFirstPortPurchase: null,
+        num_men_embark_first_port_purchase: null,
+        num_women_embark_first_port_purchase: null,
+        num_boy_embark_first_port_purchase: null,
+        num_girl_embark_first_port_purchase: null,
+        num_males_embark_first_port_purchase: null,
+        num_females_embark_first_port_purchase: null,
+        num_adult_embark_first_port_purchase: null,
+        num_child_embark_first_port_purchase: null,
+        num_infant_embark_first_port_purchase: null,
+        num_men_embark_second_port_purchase: null,
+        num_women_embark_second_port_purchase: null,
+        num_boy_embark_second_port_purchase: null,
+        num_girl_embark_second_port_purchase: null,
+        num_males_embark_second_port_purchase: null,
+        num_females_embark_second_port_purchase: null,
+        num_adult_embark_second_port_purchase: null,
+        num_child_embark_second_port_purchase: null,
+        num_infant_embark_second_port_purchase: null,
+        num_men_embark_third_port_purchase: null,
+        num_women_embark_third_port_purchase: null,
+        num_boy_embark_third_port_purchase: null,
+        num_girl_embark_third_port_purchase: null,
+        num_males_embark_third_port_purchase: null,
+        num_females_embark_third_port_purchase: null,
+        num_adult_embark_third_port_purchase: null,
+        num_child_embark_third_port_purchase: null,
+        num_infant_embark_third_port_purchase: null,
+        num_men_died_middle_passage: null,
+        num_women_died_middle_passage: null,
+        num_boy_died_middle_passage: null,
+        num_girl_died_middle_passage: null,
+        num_males_died_middle_passage: null,
+        num_females_died_middle_passage: null,
+        num_adult_died_middle_passage: null,
+        num_child_died_middle_passage: null,
+        num_infant_died_middle_passage: null,
+        num_men_disembark_first_landing: null,
+        num_women_disembark_first_landing: null,
+        num_boy_disembark_first_landing: null,
+        num_girl_disembark_first_landing: null,
+        num_males_disembark_first_landing: null,
+        num_females_disembark_first_landing: null,
+        num_adult_disembark_first_landing: null,
+        num_child_disembark_first_landing: null,
+        num_infant_disembark_first_landing: null,
+        num_men_disembark_second_landing: null,
+        num_women_disembark_second_landing: null,
+        num_boy_disembark_second_landing: null,
+        num_girl_disembark_second_landing: null,
+        num_males_disembark_second_landing: null,
+        num_females_disembark_second_landing: null,
+        num_adult_disembark_second_landing: null,
+        num_child_disembark_second_landing: null,
+        num_infant_disembark_second_landing: null,
+        imp_num_male_embarked: null,
+        imp_num_female_embarked: null,
+        imp_num_adult_embarked: null,
+        imp_num_children_embarked: null,
+        imp_num_male_landed: null,
+        imp_num_female_landed: null,
+        imp_num_adult_landed: null,
+        imp_num_child_landed: null,
+        imp_num_men_total: null,
+        imp_num_women_total: null,
+        imp_num_boy_total: null,
+        imp_num_girl_total: null,
+        imp_num_males_total: null,
+        imp_num_females_total: null,
+        imp_num_adult_total: null,
+        imp_num_child_total: null,
+        imp_male_death_middle_passage: null,
+        imp_female_death_middle_passage: null,
+        imp_adult_death_middle_passage: null,
+        imp_child_death_middle_passage: null,
+        id: 1217
+      },
+      state: "original",
+      entityRef: {
+        type: "existing",
+        schema: "VoyageSlaveNumbers",
+        id: 1217
+      }
+    },
+    Ship: {
+      data: {
+        "Name of vessel": "Juanita",
+        "National carrier": {
+          data: {
+            "Nation name": "Spain",
+            Code: 1,
+            id: 6
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Nationality",
+            id: 6
+          }
+        },
+        "Ton type": null,
+        "Tonnage of vessel": null,
+        "Rig of vessel": {
+          data: {
+            "Rig of vessel": "Schooner",
+            Code: 2,
+            id: 3
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "RigOfVessel",
+            id: 3
+          }
+        },
+        "Guns mounted": null,
+        "Year of vessel's construction": null,
+        "Construction place": null,
+        "Year of vessel's registration": null,
+        "Registered place": null,
+        Nationality: {
+          data: {
+            "Nation name": "Spain / Uruguay",
+            Code: 3,
+            id: 5
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Nationality",
+            id: 5
+          }
+        },
+        "Tonnage standardized on British measured tons, 1773-1870": null,
+        id: 1217
+      },
+      state: "original",
+      entityRef: {
+        type: "existing",
+        schema: "VoyageShip",
+        id: 1217
+      }
+    },
+    Outcome: {
+      data: {
+        "Particular Outcome": {
+          data: {
+            Name: "Voyage completed as intended",
+            Value: 1,
+            id: 2
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "ParticularOutcome",
+            id: 2
+          }
+        },
+        Resistance: null,
+        "Enslaved Outcome": {
+          data: {
+            Name: "Slaves disembarked in Americas",
+            Value: 1,
+            id: 1
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "SlavesOutcome",
+            id: 1
+          }
+        },
+        "Vessel Outcome": {
+          data: {
+            Name: "Not captured",
+            Value: 14,
+            id: 1
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "VesselOutcomeSchema",
+            id: 1
+          }
+        },
+        "Owner Outcome": {
+          data: {
+            Name: "Delivered slaves for original owners",
+            Value: 1,
+            id: 1
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "OwnerOutcome",
+            id: 1
+          }
+        },
+        id: 1217
+      },
+      state: "original",
+      entityRef: {
+        type: "existing",
+        schema: "VoyageOutcome",
+        id: 1217
+      }
+    },
+    Itinerary: {
+      data: {
+        "Port of departure": {
+          data: {
+            Name: "Havana",
+            Code: 31312,
+            id: 1126
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Location",
+            id: 1126
+          }
+        },
+        "First intended port of embarkation": null,
+        "Second intended port of embarkation": null,
+        "First intended port of disembarkation": null,
+        "Second intended port of disembarkation": null,
+        "Third intended port of disembarkation": null,
+        "Fourth intended port of disembarkation": null,
+        "Number of ports of call prior to buying slaves": null,
+        "First place of slave purchase": null,
+        "Second place of slave purchase": null,
+        "Third place of slave purchase": null,
+        "Port of call before Atlantic crossing": null,
+        "Number of ports of call in Americas prior to sale of slaves": null,
+        "First place of slave landing": {
+          data: {
+            Name: "Cuba, port unspecified",
+            Code: 31399,
+            id: 1148
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Location",
+            id: 1148
+          }
+        },
+        "Second place of slave landing": null,
+        "Third place of slave landing": null,
+        "Place at which voyage ended": null,
+        "Imputed port where voyage began": {
+          data: {
+            Name: "Havana",
+            Code: 31312,
+            id: 1126
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Location",
+            id: 1126
+          }
+        },
+        "Principal place of slave purchase": null,
+        "Imputed principal place of slave purchase": {
+          data: {
+            Name: "Africa, port unspecified",
+            Code: 60999,
+            id: 1904
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Location",
+            id: 1904
+          }
+        },
+        "Principal port of slave disembarkation": {
+          data: {
+            Name: "Cuba, port unspecified",
+            Code: 31399,
+            id: 1148
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Location",
+            id: 1148
+          }
+        },
+        "Imputed principal port of slave disembarkation": {
+          data: {
+            Name: "Cuba, port unspecified",
+            Code: 31399,
+            id: 1148
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "Location",
+            id: 1148
+          }
+        },
+        id: 1217
+      },
+      state: "original",
+      entityRef: {
+        type: "existing",
+        schema: "VoyageItinerary",
+        id: 1217
+      }
+    },
+    Dates: {
+      data: {
+        "Length of Middle Passage in (days)": null,
+        "Voyage length from home port to disembarkation (days)": 184,
+        "Voyage length from last slave embarkation to first disembarkation (days)":
+          null,
+        "Date that voyage began": {
+          data: {
+            Year: 1831,
+            Month: 5,
+            Day: 27,
+            id: 6182
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "VoyageSparseDate",
+            id: 6182
+          }
+        },
+        "Date that slave purchase began": null,
+        "Date that vessel left last slaving port": null,
+        "Date of first disembarkation of slaves": {
+          data: {
+            Year: 1831,
+            Month: 11,
+            Day: 27,
+            id: 6183
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "VoyageSparseDate",
+            id: 6183
+          }
+        },
+        "Date vessel departed Africa": null,
+        "Date of arrival at second place of landing": null,
+        "Date of third disembarkation of slaves": null,
+        "Date of departure from last place of landing": null,
+        "Date on which slave voyage completed": null,
+        "Voyage began": {
+          data: {
+            Year: 1831,
+            Month: null,
+            Day: null,
+            id: 6184
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "VoyageSparseDate",
+            id: 6184
+          }
+        },
+        "Departed Africa": {
+          data: {
+            Year: 1831,
+            Month: null,
+            Day: null,
+            id: 6185
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "VoyageSparseDate",
+            id: 6185
+          }
+        },
+        "Year of arrival at port of disembarkation": {
+          data: {
+            Year: 1831,
+            Month: null,
+            Day: null,
+            id: 6186
+          },
+          state: "original",
+          entityRef: {
+            type: "existing",
+            schema: "VoyageSparseDate",
+            id: 6186
+          }
+        },
+        id: 1217
+      },
+      state: "original",
+      entityRef: {
+        type: "existing",
+        schema: "VoyageDates",
+        id: 1217
+      }
+    },
+    Sources: [
+      {
+        data: {
+          voyage_id: 1234,
+          Source: {
+            data: {
+              Title:
+                "Irish University Press Series of British Parliamentary Papers: Slave Trade",
+              id: 1564
+            },
+            state: "original",
+            entityRef: {
+              type: "existing",
+              schema: "Voyage Source",
+              id: 1564
+            }
+          },
+          "Page range": "IUP,ST,13/A2/49,50",
+          id: 78189
+        },
+        state: "original",
+        entityRef: {
+          type: "existing",
+          schema: "Voyage Source Connection",
+          id: 78189
+        }
+      },
+      {
+        data: {
+          voyage_id: 1234,
+          Source: {
+            data: {
+              Title:
+                "Great Britain, <i>Parliamentary Papers</i>:  1777, Accounts and Papers, No 9 1788, XXII  1789, XXIV, XXV, XXVI 1790, XXIX, XXX, XXXI 1790-91, XXXIV 1792, XXXV 1795-96, XLII  1798-99, XLVIII 1799 XLVIII 1801-2, IV  1803-4, X 1806, XII 1813-14, XII 181",
+              id: 1996
+            },
+            state: "original",
+            entityRef: {
+              type: "existing",
+              schema: "Voyage Source",
+              id: 1996
+            }
+          },
+          "Page range": "PP,1845,XLIX:593-633",
+          id: 120970
+        },
+        state: "original",
+        entityRef: {
+          type: "existing",
+          schema: "Voyage Source Connection",
+          id: 120970
+        }
+      },
+      {
+        data: {
+          voyage_id: 1234,
+          Source: {
+            data: {
+              Title:
+                "Irish University Press Series of British Parliamentary Papers: Slave Trade",
+              id: 1564
+            },
+            state: "original",
+            entityRef: {
+              type: "existing",
+              schema: "Voyage Source",
+              id: 1564
+            }
+          },
+          "Page range": null,
+          id: 225110
+        },
+        state: "original",
+        entityRef: {
+          type: "existing",
+          schema: "Voyage Source Connection",
+          id: 225110
+        }
+      },
+      {
+        data: {
+          voyage_id: 1234,
+          Source: {
+            data: {
+              Title:
+                "Great Britain, <i>Parliamentary Papers</i>:  1777, Accounts and Papers, No 9 1788, XXII  1789, XXIV, XXV, XXVI 1790, XXIX, XXX, XXXI 1790-91, XXXIV 1792, XXXV 1795-96, XLII  1798-99, XLVIII 1799 XLVIII 1801-2, IV  1803-4, X 1806, XII 1813-14, XII 181",
+              id: 1996
+            },
+            state: "original",
+            entityRef: {
+              type: "existing",
+              schema: "Voyage Source",
+              id: 1996
+            }
+          },
+          "Page range": null,
+          id: 266326
+        },
+        state: "original",
+        entityRef: {
+          type: "existing",
+          schema: "Voyage Source Connection",
+          id: 266326
+        }
+      }
+    ],
+    "Enslavement relations": [
+      {
+        data: {
+          voyage_id: 1234,
+          "Relation type": {
+            data: {
+              "Relation type": "Transportation",
+              id: 1
+            },
+            state: "original",
+            entityRef: {
+              type: "existing",
+              schema: "EnslavementRelationType",
+              id: 1
+            }
+          },
+          Place: null,
+          Amount: null,
+          id: 1955,
+          "Enslaved in relation": [],
+          "Enslavers in relation": [
+            {
+              data: {
+                relation_id: 1955,
+                "Enslaver alias": {
+                  data: {
+                    Alias: "Arrarte, Juan Bautista",
+                    Identity: {
+                      data: {
+                        "Principal alias": "Arrate, Juan Bautista",
+                        "Birth year": null,
+                        "Birth month": null,
+                        "Birth day": null,
+                        "Birth place": null,
+                        "Death year": null,
+                        "Death month": null,
+                        "Death day": null,
+                        "Death place": null,
+                        "Father name": null,
+                        "Father occupation": null,
+                        "Mother name": null,
+                        "Probate date": null,
+                        "Will value (pounds)": null,
+                        "Will value (dollars)": null,
+                        "Will court": null,
+                        "Principal location": null,
+                        Notes: null,
+                        id: 1000290,
+                        Aliases: [
+                          {
+                            data: {
+                              Alias: "Arrarte, Juan Batista de",
+                              id: 1000758
+                            },
+                            state: "original",
+                            entityRef: {
+                              type: "existing",
+                              schema: "EnslaverAlias",
+                              id: 1000758
+                            }
+                          },
+                          {
+                            data: {
+                              Alias: "Arrate, Juan Bautista",
+                              id: 1000759
+                            },
+                            state: "original",
+                            entityRef: {
+                              type: "existing",
+                              schema: "EnslaverAlias",
+                              id: 1000759
+                            }
+                          },
+                          {
+                            data: {
+                              Alias: "Arrarte, Juan Bautista",
+                              id: 1000760
+                            },
+                            state: "original",
+                            entityRef: {
+                              type: "existing",
+                              schema: "EnslaverAlias",
+                              id: 1000760
+                            }
+                          },
+                          {
+                            data: {
+                              Alias: "Arrarte, Juan Bautista",
+                              id: 1000761
+                            },
+                            state: "original",
+                            entityRef: {
+                              type: "existing",
+                              schema: "EnslaverAlias",
+                              id: 1000761
+                            }
+                          },
+                          {
+                            data: {
+                              Alias: "Arrate, Juan Bautista",
+                              id: 1000763
+                            },
+                            state: "original",
+                            entityRef: {
+                              type: "existing",
+                              schema: "EnslaverAlias",
+                              id: 1000763
+                            }
+                          }
+                        ]
+                      },
+                      state: "original",
+                      entityRef: {
+                        type: "existing",
+                        schema: "Enslaver",
+                        id: 1000290
+                      }
+                    },
+                    id: 1000761
+                  },
+                  state: "original",
+                  entityRef: {
+                    type: "existing",
+                    schema: "EnslaverAliasWithIdentity",
+                    id: 1000761
+                  }
+                },
+                id: 3178,
+                Roles: [
+                  {
+                    data: {
+                      enslaverinrelation_id: 3178,
+                      Role: {
+                        data: {
+                          "Enslaver role": "Captain",
+                          id: 1
+                        },
+                        state: "original",
+                        entityRef: {
+                          type: "existing",
+                          schema: "EnslaverRole",
+                          id: 1
+                        }
+                      },
+                      id: 3571
+                    },
+                    state: "original",
+                    entityRef: {
+                      type: "existing",
+                      schema: "EnslaverRelationRoleConn",
+                      id: 3571
+                    }
+                  }
+                ]
+              },
+              state: "original",
+              entityRef: {
+                type: "existing",
+                schema: "EnslaverInRelation",
+                id: 3178
+              }
+            }
+          ]
+        },
+        state: "original",
+        entityRef: {
+          type: "existing",
+          schema: "EnslavementRelation",
+          id: 1955
+        }
+      }
+    ]
+  },
+  state: "original",
+  entityRef: {
+    type: "existing",
+    schema: "Voyage",
+    id: 1234
+  }
+}
+
+test("deep relational update with ownedList", () => {
+  const target = cloneEntity(voyage1234)
+  const changes: EntityChange[] = [
+    {
+      type: "update",
+      entityRef: {
+        type: "existing",
+        schema: "Voyage",
+        id: 1234
+      },
+      changes: [
+        {
+          kind: "ownedList",
+          modified: [
+            {
+              kind: "owned",
+              ownedEntity: {
+                data: {},
+                state: "lazy",
+                entityRef: {
+                  type: "existing",
+                  schema: "EnslavementRelation",
+                  id: 1955
+                }
+              },
+              property: "Voyage_Enslavement relations",
+              changes: [
+                {
+                  kind: "ownedList",
+                  modified: [
+                    {
+                      kind: "owned",
+                      ownedEntity: {
+                        entityRef: {
+                          id: "17473375505203f49685d-b011-476f-a214-81dba288f8bd",
+                          schema: "EnslaverInRelation",
+                          type: "new"
+                        },
+                        state: "new",
+                        data: {}
+                      },
+                      property: "EnslavementRelation_Enslavers in relation",
+                      changes: [
+                        {
+                          kind: "linked",
+                          property: "EnslaverInRelation_enslaver_alias_id",
+                          changed: {
+                            entityRef: {
+                              id: "d1bcdd0b-bf75-49e1-82ea-efaca936ea08",
+                              schema: "EnslaverAliasWithIdentity",
+                              type: "new"
+                            },
+                            state: "new",
+                            data: {
+                              Alias: "McEnslaver, Badderson",
+                              Identity: {
+                                entityRef: {
+                                  id: "d3968b53-7f01-4f8e-9e13-a5e6ead506a5",
+                                  schema: "Enslaver",
+                                  type: "new"
+                                },
+                                data: {
+                                  Aliases: [],
+                                  "Principal alias": "Bad Enslaver",
+                                  "Is natural person": true,
+                                  "Birth year": null,
+                                  "Birth month": null,
+                                  "Birth day": null,
+                                  "Birth place": null,
+                                  "Death year": null,
+                                  "Death month": null,
+                                  "Death day": null,
+                                  "Death place": null,
+                                  "Father name": "",
+                                  "Father occupation": "",
+                                  "Mother name": "",
+                                  "Probate date": "",
+                                  "Will value (pounds)": "",
+                                  "Will value (dollars)": "",
+                                  "Will court": "",
+                                  "Principal location": {
+                                    entityRef: {
+                                      id: "680",
+                                      schema: "Location",
+                                      type: "existing"
+                                    },
+                                    state: "lazy",
+                                    data: {
+                                      Name: "New York",
+                                      Code: 20699,
+                                      id: 680
+                                    }
+                                  },
+                                  Notes: ""
+                                },
+                                state: "new"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          kind: "direct",
+                          property: "EnslaverInRelation_owner_relation_id",
+                          changed: 1955
+                        }
+                      ]
+                    }
+                  ],
+                  removed: [],
+                  property: "EnslavementRelation_Enslavers in relation"
+                },
+                {
+                  kind: "linked",
+                  property: "EnslavementRelation_place_id",
+                  changed: {
+                    entityRef: {
+                      id: "2068",
+                      schema: "Location",
+                      type: "existing"
+                    },
+                    data: {
+                      Name: "At sea",
+                      Code: 90719,
+                      id: 2068
+                    },
+                    state: "lazy"
+                  }
+                }
+              ]
+            }
+          ],
+          removed: [],
+          property: "Voyage_Enslavement relations"
+        }
+      ]
+    }
+  ]
+  applyChanges(expandMaterialized(target), changes)
+  // Check that the original enslaver is still there and the new one is added
+  // (both Alias and Identity).
+  const enslavers =
+    target.data["Enslavement relations"]![0].data["Enslavers in relation"]
+  expect(enslavers[0].data["Enslaver alias"].data["Alias"]).toBe(
+    "Arrarte, Juan Bautista"
+  )
+  expect(enslavers[1].data["Enslaver alias"].data["Alias"]).toBe(
+    "McEnslaver, Badderson"
+  )
+  expect(
+    enslavers[1].data["Enslaver alias"].data["Identity"].data["Principal alias"]
+  ).toBe("Bad Enslaver")
+  // console.dir(target, { depth: null })
+})
+
+test("table change", () => {
+  const target = cloneEntity(voyage1234)
+  const changes: EntityChange[] = [
+    {
+      type: "update",
+      entityRef: {
+        type: "existing",
+        schema: "Voyage",
+        id: 1234
+      },
+      changes: [
+        {
+          property: "Voyage_Slave Numbers",
+          kind: "owned",
+          ownedEntity: {
+            entityRef: {
+              type: "existing",
+              schema: "VoyageSlaveNumbers",
+              id: 1217
+            },
+            state: "original",
+            data: {}
+          },
+          changes: [
+            {
+              kind: "table",
+              property: "sn_characteristics",
+              changes: {
+                num_men_embark_first_port_purchase: 55,
+                num_women_embark_first_port_purchase: 44
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  applyChanges(expandMaterialized(target), changes)
+  const sn = target.data["Slave Numbers"] as MaterializedEntity
+  expect(sn.data["num_men_embark_first_port_purchase"]).toBe(55)
+})
+
+test("sparse date changes", () => {
+  const target = cloneEntity(voyage1234)
+  const changes: EntityChange[] = [
+    {
+      type: "update",
+      entityRef: {
+        type: "existing",
+        schema: "Voyage",
+        id: 1234
+      },
+      changes: [
+        {
+          property: "Voyage_Dates",
+          kind: "owned",
+          ownedEntity: {
+            entityRef: {
+              type: "existing",
+              schema: "VoyageDates",
+              id: 1217
+            },
+            state: "original",
+            data: {}
+          },
+          changes: [
+            {
+              kind: "linked",
+              property: "VoyageDates_date_departed_africa_sparsedate_id",
+              changed: {
+                entityRef: {
+                  id: "ee2c5a7c-c298-4d77-85d0-45888aa9d8f0",
+                  schema: "VoyageSparseDate",
+                  type: "new"
+                },
+                state: "new",
+                data: {
+                  Year: null,
+                  Month: null,
+                  Day: null
+                }
+              },
+              linkedChanges: [
+                {
+                  kind: "direct",
+                  property: "VoyageSparseDate_year",
+                  changed: 1831
+                },
+                {
+                  kind: "direct",
+                  property: "VoyageSparseDate_month",
+                  changed: 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  applyChanges(expandMaterialized(target), changes)
+  const dates = target.data["Dates"] as MaterializedEntity
+  const field = AllProperties["VoyageDates_date_departed_africa_sparsedate_id"].label
+  const changedDate = dates.data[field] as MaterializedEntity
+  expect(changedDate.data["Year"]).toBe(1831)
+  expect(changedDate.data["Month"]).toBe(9)
 })
