@@ -1,7 +1,7 @@
 import { PropertyValidation } from "./validation"
 
 export enum PropertyAccessLevel {
-  BegginerContributor = 0,
+  BeginnerContributor = 0,
   IntermediateContributor = 1,
   AdvancedContributor = 2,
   Editor = 100,

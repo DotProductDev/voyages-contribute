@@ -1,5 +1,6 @@
 import { AllProperties } from "./entities"
 import {
+  BaseFieldValue,
   cloneEntity,
   FieldValue,
   isMaterializedEntity,
@@ -23,9 +24,12 @@ export interface PropertyChangeBase {
   comments?: string
 }
 
+export type PropertyValue = BaseFieldValue | EntityRef | null
+
 export interface DirectPropertyChange extends PropertyChangeBase {
   readonly kind: "direct"
-  changed: string | number | boolean | EntityRef | null
+  original?: PropertyValue
+  changed: PropertyValue
 }
 
 export const isDirectChange = (
@@ -56,7 +60,7 @@ export interface LinkedEntitySelectionChange extends PropertyChangeBase {
   /**
    * In case updates have been made to the linked entity.
    */
-  linkedChanges?: DirectPropertyChange[]
+  linkedChanges?: PropertyChange[]
 }
 
 export interface OwnedEntityChange extends PropertyChangeBase {
