@@ -1148,7 +1148,7 @@ export const VoyageSourceSchema = mkBuilder({
   .addLinkedEntity({
     label: "Date",
     description: "Date of publication or authorship",
-    backingField: "voyage_began_sparsedate_id",
+    backingField: "date",
     linkedEntitySchema: SparseDateSchema,
     mode: EntityLinkEditMode.Own
   })
