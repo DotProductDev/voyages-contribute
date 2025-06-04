@@ -163,7 +163,8 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
     const batchId =
       req.query.batch_id !== undefined
-        ? typeof req.query.batch_id === "string" && req.query.batch_id !== "null"
+        ? typeof req.query.batch_id === "string" &&
+          req.query.batch_id !== "null"
           ? parseInt(req.query.batch_id)
           : null
         : undefined
@@ -261,7 +262,10 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
     }
     // If the status is not ContributionStatus.WorkInProgress, we must reject
     // the request.
-    if (existing?.status !== ContributionStatus.WorkInProgress) {
+    if (
+      existing?.status !== undefined &&
+      existing.status !== ContributionStatus.WorkInProgress
+    ) {
       res.status(400).json({
         error: `This contribution has status ${existing!.status} and cannot be replaced. Use the APIs to update status/reviews.`
       })
@@ -275,7 +279,9 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
         id: existing?.changeSet?.id,
         author,
         timestamp: Date.now()
-      }
+      },
+      media: existing?.media ?? [],
+      batch: existing?.batch ?? null
     }
     const contribution = await dbService.createContribution(contributionData)
     res.status(201).json(contribution)
@@ -416,7 +422,7 @@ app.post(
         return
       }
       res.status(201).json({
-        ...updatedContribution,
+        contribution: updatedContribution,
         uploadedFile: {
           filename: uploadedFile.filename,
           originalName: uploadedFile.originalname,

@@ -82,53 +82,7 @@ Content-Type: application/json
 
 ###
 
-### Create contribution with media
-POST {{baseUrl}}/contributions
-Content-Type: application/json
-
-{
-  "id": "contrib-789-media",
-  "root": {
-    "entityType": "Recipe",
-    "entityId": "recipe-456"
-  },
-  "changeSet": {
-    "title": "Add recipe images",
-    "comments": "Added step-by-step cooking images",
-    "changes": [
-      {
-        "operation": "add",
-        "path": "/images",
-        "newValue": ["step1.jpg", "step2.jpg", "final.jpg"]
-      }
-    ]
-  },
-  "status": 0,
-  "media": [
-    {
-      "type": "image",
-      "file": "step1.jpg",
-      "name": "Preparation Step 1",
-      "comments": "Shows ingredient preparation"
-    },
-    {
-      "type": "image", 
-      "file": "step2.jpg",
-      "name": "Cooking Step 2",
-      "comments": "Shows cooking process"
-    },
-    {
-      "type": "image",
-      "file": "final.jpg", 
-      "name": "Final Result",
-      "comments": "Shows finished dish"
-    }
-  ]
-}
-
-###
-
-### Create contribution with audio documentation
+### Create another contribution
 POST {{baseUrl}}/contributions
 Content-Type: application/json
 
@@ -149,15 +103,7 @@ Content-Type: application/json
       }
     ]
   },
-  "status": 0,
-  "media": [
-    {
-      "type": "audio",
-      "file": "pronunciation-guide.mp3",
-      "name": "Technical Terms Pronunciation",
-      "comments": "Pronunciation guide for difficult technical terms"
-    }
-  ]
+  "status": 0
 }
 
 ###

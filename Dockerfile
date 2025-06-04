@@ -18,6 +18,10 @@ RUN npm run build-server
 
 # Production stage
 FROM node:slim
+ENV CONTRIB_DB_PATH=/etc/data/contrib.db
+ENV MEDIA_UPLOAD_FOLDER=/etc/data/uploads
+ENV NODE_ENV=production
+ENV PORT=3000
 
 # Set working directory
 WORKDIR /usr/src/app
