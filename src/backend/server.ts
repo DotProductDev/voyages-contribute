@@ -9,12 +9,16 @@ import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import cors from "cors"
 import morgan from "morgan"
-import { ContributionStatus } from "../models/contribution"
+import { ContributionMedia, ContributionStatus } from "../models/contribution"
 import { ApiBatchResolver, DebouncedResolver } from "./dataResolvers"
 import { DataResolver } from "../models/query"
 import { getSchema } from "../models/entities"
 import { EntityData, MaterializedEntity } from "../models/materialization"
 import { fetchEntities } from "./entityFetch"
+import multer from "multer"
+import path from "path"
+import fs from "fs/promises"
+
 // Load environment variables
 dotenv.config()
 
@@ -26,6 +30,82 @@ const JWT_SECRET = process.env.JWT_SECRET || "dummy-secret"
 const VOYAGES_API_DATA_URL =
   process.env.VOYAGES_API_DATA_URL || "http://127.0.0.1:8000/contrib/data"
 const VOYAGES_API_AUTH_TOKEN = process.env.VOYAGES_API_AUTH_TOKEN || ""
+
+// Configure multer for file uploads
+const uploadDir = process.env.MEDIA_UPLOAD_FOLDER || "./uploads"
+
+// Ensure upload directory exists
+const ensureUploadDir = async () => {
+  try {
+    await fs.access(uploadDir)
+  } catch {
+    await fs.mkdir(uploadDir, { recursive: true })
+  }
+}
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: async (_req, _file, cb) => {
+    await ensureUploadDir()
+    cb(null, uploadDir)
+  },
+  filename: (_req, file, cb) => {
+    // Generate unique filename: timestamp_originalname
+    const timestamp = Date.now()
+    const ext = path.extname(file.originalname)
+    const nameWithoutExt = path.basename(file.originalname, ext)
+    const safeFilename = `${timestamp}_${nameWithoutExt}${ext}`
+    cb(null, safeFilename)
+  }
+})
+
+// File filter for security
+const fileFilter = (
+  _req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  // Define allowed file types
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "audio/mpeg",
+    "audio/wav",
+    "audio/ogg",
+    "application/pdf",
+    "text/plain"
+  ]
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true)
+  } else {
+    cb(new Error(`File type ${file.mimetype} not allowed`))
+  }
+}
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 30 * 1024 * 1024, // 30MB limit
+    files: 1 // Only one file per request
+  }
+})
+
+// Function to infer media type from MIME type
+const inferMediaTypeFromMime = (
+  mimeType: string
+): ContributionMedia["type"] => {
+  if (mimeType.startsWith("image/")) {
+    return "image"
+  }
+  if (mimeType.startsWith("audio/")) {
+    return "audio"
+  }
+  // Everything else (PDFs, text files, etc.) is considered a document
+  return "document"
+}
 
 // Local debug JWT:
 // eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiV2ViVUkiLCJJc3N1ZXIiOiJJc3N1ZXIiLCJVc2VybmFtZSI6IkNvbnRyaWJ1dGVBcHAiLCJleHAiOjM5NTE0NzM0NzIsImlhdCI6MTc0MjQ4NDY3Mn0.11NiAwJt59AyIUF4gO04IUr8earCFQPsQPVXyeMydD0
@@ -81,6 +161,12 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
     // Parse query parameters
     const page = req.query.page ? parseInt(req.query.page as string) : 1
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+    const batchId =
+      req.query.batch_id !== undefined
+        ? typeof req.query.batch_id === "string" && req.query.batch_id !== "null"
+          ? parseInt(req.query.batch_id)
+          : null
+        : undefined
     const sortBy = (req.query.sortBy as "author" | "timestamp") || "timestamp"
     const sortOrder = (req.query.sortOrder as "ASC" | "DESC") || "DESC"
 
@@ -99,10 +185,12 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
       }
     }
 
+    console.log(batchId)
     const result = await dbService.listContributions({
       page,
       limit,
       status,
+      batchId,
       sortBy,
       sortOrder
     })
@@ -156,22 +244,39 @@ app.get("/contributions/:id", authenticateJWT, async (req, res) => {
   }
 })
 
-// Create new contribution
+// Create new/replace contribution
 app.post("/contributions", authenticateJWT, async (req, res) => {
   try {
     // Extract user info from JWT
     const user = (req as any).user
-
+    const author = user?.username || user?.name || user?.email || "Unknown"
+    // Check if contribution already exists
+    const existing = await dbService.getContribution(req.body.id)
+    // If existing it must match the user.
+    if (existing && existing.changeSet.author !== author) {
+      res
+        .status(403)
+        .json({ error: "You cannot modify contributions made by others" })
+      return
+    }
+    // If the status is not ContributionStatus.WorkInProgress, we must reject
+    // the request.
+    if (existing?.status !== ContributionStatus.WorkInProgress) {
+      res.status(400).json({
+        error: `This contribution has status ${existing!.status} and cannot be replaced. Use the APIs to update status/reviews.`
+      })
+      return
+    }
     // Create contribution with author from JWT
     const contributionData = {
       ...req.body,
       changeSet: {
         ...req.body.changeSet,
-        author: user.name || user.email || "Unknown",
+        id: existing?.changeSet?.id,
+        author,
         timestamp: Date.now()
       }
     }
-
     const contribution = await dbService.createContribution(contributionData)
     res.status(201).json(contribution)
   } catch (error) {
@@ -180,42 +285,335 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
   }
 })
 
-// Update contribution
-app.put("/contributions/:id", authenticateJWT, async (req, res) => {
-  try {
-    const updatedContribution = await dbService.updateContribution(
-      req.params.id,
-      req.body
-    )
+// Change contribution status
+app.patch(
+  "/contributions/:id/change_status",
+  authenticateJWT,
+  async (req, res) => {
+    try {
+      const { status } = req.body
+      if (
+        typeof status !== "number" ||
+        (status !== ContributionStatus.Published &&
+          status !== ContributionStatus.Accepted &&
+          status !== ContributionStatus.Submitted &&
+          status !== ContributionStatus.Rejected)
+      ) {
+        res.status(400).json({
+          error: "Invalid status",
+          details:
+            "Status value must be one of: Published, Accepted, Submitted, Rejected"
+        })
+        return
+      }
+      const existing = await dbService.getContribution(req.body.id)
+      if (!existing) {
+        res.status(404).json({ error: "Contribution not found" })
+        return
+      }
+      let updatedContribution = { ...existing, status }
+      updatedContribution =
+        await dbService.createContribution(updatedContribution)
+      res.json(updatedContribution)
+    } catch (error) {
+      console.error(
+        `Error changing status for contribution ${req.params.id}:`,
+        error
+      )
+      res.status(500).json({
+        error: "Failed to change contribution status",
+        details: (error as Error).message
+      })
+    }
+  }
+)
 
+// Add review to contribution
+app.post("/contributions/:id/add_review", authenticateJWT, async (req, res) => {
+  try {
+    const user = (req as any).user
+    const { changeSet } = req.body
+    // Validate required fields
+    if (!changeSet) {
+      res.status(400).json({
+        error: "Invalid review data",
+        details: "changeSet is required"
+      })
+      return
+    }
+    // Add author and timestamp to changeSet if not provided
+    const reviewChangeSet = {
+      ...changeSet,
+      author: changeSet.author || user?.name || user?.email || "Unknown",
+      timestamp: changeSet.timestamp || Date.now()
+    }
+    const updatedContribution = await dbService.addReviewToContribution(
+      req.params.id,
+      reviewChangeSet
+    )
     if (!updatedContribution) {
       res.status(404).json({ error: "Contribution not found" })
       return
     }
-
-    res.json(updatedContribution)
+    res.status(201).json(updatedContribution)
   } catch (error) {
-    console.error(`Error updating contribution ${req.params.id}:`, error)
-    res.status(500).json({ error: "Failed to update contribution" })
+    console.error(
+      `Error adding review to contribution ${req.params.id}:`,
+      error
+    )
+    res.status(500).json({
+      error: "Failed to add review",
+      details: (error as Error).message
+    })
   }
 })
 
-// Delete contribution
-app.delete("/contributions/:id", authenticateJWT, async (req, res) => {
-  try {
-    const success = await dbService.deleteContribution(req.params.id)
+// Upload media for contribution
+app.post(
+  "/contributions/:id/upload_media",
+  authenticateJWT,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const contributionId = req.params.id
+      const uploadedFile = req.file
+      const { name, comments } = req.body
+      // Validate required fields
+      if (!uploadedFile) {
+        res.status(400).json({
+          error: "No file uploaded",
+          details: "A file must be provided"
+        })
+        return
+      }
+      const type = inferMediaTypeFromMime(uploadedFile.mimetype)
+      if (!type || !name) {
+        // Clean up uploaded file if validation fails
+        await fs.unlink(uploadedFile.path).catch(() => {})
+        res.status(400).json({
+          error: "Missing required fields",
+          details: "Name is required"
+        })
+        return
+      }
+      const mediaData = {
+        type,
+        file: uploadedFile.filename, // Store the generated filename
+        name,
+        comments: comments || "",
+        fileSize: uploadedFile.size,
+        mimeType: uploadedFile.mimetype,
+        originalName: uploadedFile.originalname
+      }
+      const updatedContribution = await dbService.addMediaToContribution(
+        contributionId,
+        mediaData
+      )
+      if (!updatedContribution) {
+        // Clean up uploaded file if contribution not found
+        await fs.unlink(uploadedFile.path).catch(() => {})
+        res.status(404).json({ error: "Contribution not found" })
+        return
+      }
+      res.status(201).json({
+        ...updatedContribution,
+        uploadedFile: {
+          filename: uploadedFile.filename,
+          originalName: uploadedFile.originalname,
+          size: uploadedFile.size,
+          mimeType: uploadedFile.mimetype
+        }
+      })
+    } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file) {
+        await fs.unlink(req.file.path).catch(() => {})
+      }
+      console.error(
+        `Error uploading media for contribution ${req.params.id}:`,
+        error
+      )
+      // Handle multer errors specially
+      if (error instanceof multer.MulterError) {
+        if (error.code === "LIMIT_FILE_SIZE") {
+          res.status(400).json({
+            error: "File too large",
+            details: "Maximum file size is 50MB"
+          })
+          return
+        }
+        if (error.code === "LIMIT_UNEXPECTED_FILE") {
+          res.status(400).json({
+            error: "Unexpected file field",
+            details: "Use 'file' as the field name for uploads"
+          })
+          return
+        }
+      }
 
+      res.status(500).json({
+        error: "Failed to upload media",
+        details: (error as Error).message
+      })
+    }
+  }
+)
+
+// Delete media from contribution
+app.delete("/media/:mediaId", authenticateJWT, async (req, res) => {
+  try {
+    const mediaId = parseInt(req.params.mediaId)
+    if (isNaN(mediaId)) {
+      res.status(400).json({
+        error: "Invalid media ID",
+        details: "Media ID must be a number"
+      })
+      return
+    }
+    // Get the media info first (need file path for deletion)
+    const media = await dbService.getMediaById(mediaId)
+    if (!media) {
+      res.status(404).json({ error: "Media not found" })
+      return
+    }
+    // Delete the file from disk
+    const filePath = path.join(uploadDir, media.file)
+    try {
+      await fs.unlink(filePath)
+    } catch (error) {
+      console.warn(`Failed to delete file ${filePath}:`, error)
+      // Continue with database deletion even if file deletion fails
+    }
+    // Delete from database
+    const success = await dbService.removeMedia(mediaId)
     if (!success) {
-      res.status(404).json({ error: "Contribution not found" })
+      res.status(500).json({
+        error: "Failed to remove media from database"
+      })
       return
     }
 
     res.status(204).send()
   } catch (error) {
-    console.error(`Error deleting contribution ${req.params.id}:`, error)
-    res.status(500).json({ error: "Failed to delete contribution" })
+    console.error(`Error deleting media ${req.params.mediaId}:`, error)
+    res.status(500).json({
+      error: "Failed to delete media",
+      details: (error as Error).message
+    })
   }
 })
+
+// Create publication batch
+app.post("/create_batch", authenticateJWT, async (req, res) => {
+  try {
+    const { title, comments } = req.body
+    // Validate required fields
+    if (!title) {
+      res.status(400).json({
+        error: "Missing required fields",
+        details: "title is required"
+      })
+      return
+    }
+    const batchData = {
+      title,
+      comments: comments || ""
+    }
+    const createdBatch = await dbService.createPublicationBatch(batchData)
+    res.status(201).json(createdBatch)
+  } catch (error) {
+    console.error("Error creating publication batch:", error)
+    res.status(500).json({
+      error: "Failed to create publication batch",
+      details: (error as Error).message
+    })
+  }
+})
+
+// Assign contribution to batch
+app.patch("/assign_to_batch", authenticateJWT, async (req, res) => {
+  try {
+    const { contribution_id, batch_id } = req.body
+    // Validate required fields
+    if (!contribution_id) {
+      res.status(400).json({
+        error: "Missing required fields",
+        details: "contribution_id is required"
+      })
+      return
+    }
+    // batch_id can be null to clear assignment
+    const updatedContribution = await dbService.assignContributionToBatch(
+      contribution_id,
+      batch_id
+    )
+    if (!updatedContribution) {
+      res.status(404).json({
+        error: "Contribution not found"
+      })
+      return
+    }
+    res.json(updatedContribution)
+  } catch (error) {
+    console.error(
+      `Error assigning contribution ${req.body.contribution_id} to batch:`,
+      error
+    )
+    res.status(500).json({
+      error: "Failed to assign contribution to batch",
+      details: (error as Error).message
+    })
+  }
+})
+
+// Get batches by status
+app.get("/batches/:filter", authenticateJWT, async (req, res) => {
+  try {
+    const filter = req.params.filter
+    // Validate filter parameter
+    if (!["all", "published", "pending"].includes(filter)) {
+      res.status(400).json({
+        error: "Invalid filter parameter",
+        details: "filter must be one of: all, published, pending"
+      })
+      return
+    }
+    const batches = await dbService.getBatchesByStatus(
+      filter as "all" | "published" | "pending"
+    )
+    res.json({
+      filter,
+      count: batches.length,
+      batches
+    })
+  } catch (error) {
+    console.error(
+      `Error retrieving batches with filter ${req.params.filter}:`,
+      error
+    )
+    res.status(500).json({
+      error: "Failed to retrieve batches",
+      details: (error as Error).message
+    })
+  }
+})
+
+// Delete contribution
+// app.delete("/contributions/:id", authenticateJWT, async (req, res) => {
+//   try {
+//     const success = await dbService.deleteContribution(req.params.id)
+//
+//     if (!success) {
+//       res.status(404).json({ error: "Contribution not found" })
+//       return
+//     }
+//
+//     res.status(204).send()
+//   } catch (error) {
+//     console.error(`Error deleting contribution ${req.params.id}:`, error)
+//     res.status(500).json({ error: "Failed to delete contribution" })
+//   }
+// })
 
 app.get(
   "/enumerate/:schema",

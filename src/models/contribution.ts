@@ -14,7 +14,10 @@ export interface ChangeSet {
 export interface PublicationBatch {
   title: string
   comments: string
-  published: boolean
+  /**
+   * The timestamp of the publication batch, if it has been published.
+   */
+  published: number | null
 }
 
 export enum ContributionStatus {

@@ -27,7 +27,7 @@
     "pack": "npm run build-frontend && node scripts/build.js && npm pack ./output/frontend --pack-destination output/",
     "publish-package": "npm run pack && npm publish ./output/frontend",
     "preview": "vite preview",
-    "server": "npm run build-server && node output/server/server.js",
+    "server": "npm run build-server && dotenv -e .env -- node output/server/server.js",
     "test": "vitest",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix"
@@ -38,9 +38,11 @@
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.13.10",
     "@typescript-eslint/eslint-plugin": "^8.27.0",
     "@typescript-eslint/parser": "^8.27.0",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9.22.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.3",
@@ -52,18 +54,18 @@
     "vite-plugin-dts": "^4.5.3",
     "vitest": "^3.0.9"
   },
-  "libDependencies": {
-  },
+  "libDependencies": {},
   "dependencies": {
     "@types/uuid": "^10.0.0",
-    "dotenv": "^16.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "multer": "^2.0.1",
     "reflect-metadata": "^0.2.2",
     "sqlite3": "^5.1.7",
     "typeorm": "^0.3.21",
-    "uuid": "^11.1.0",
-    "express": "^4.21.2",
-    "cors": "^2.8.5"
+    "uuid": "^11.1.0"
   }
 }

@@ -26,5 +26,10 @@ dist-ssr
 # Database files
 
 *.sqlite
+*.db
 
 output/
+
+.env
+
+uploads/

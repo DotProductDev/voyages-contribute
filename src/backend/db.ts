@@ -9,7 +9,9 @@ import {
   JoinColumn,
   DataSource,
   Repository,
-  In
+  In,
+  EntityManager,
+  IsNull
 } from "typeorm"
 import { v4 as uuidv4 } from "uuid"
 import type { EntityChange, EntityRef } from "../models/changeSets"
@@ -24,7 +26,7 @@ import {
 
 // Entities that map to our interfaces.
 
-@Entity()
+@Entity("changesets")
 export class ChangeSetEntity implements ChangeSet {
   @PrimaryGeneratedColumn()
   id!: number
@@ -45,7 +47,7 @@ export class ChangeSetEntity implements ChangeSet {
   changes!: EntityChange[]
 }
 
-@Entity()
+@Entity("publication_batches")
 export class PublicationBatchEntity implements PublicationBatch {
   @PrimaryGeneratedColumn()
   id!: number
@@ -56,19 +58,23 @@ export class PublicationBatchEntity implements PublicationBatch {
   @Column({ type: "varchar" })
   comments!: string
 
-  @Column({ type: "varchar" })
-  published!: boolean
+  @Column({ type: "varchar", nullable: true })
+  published!: number | null
 
   @OneToMany(() => ContributionEntity, (contribution) => contribution.batch)
   contributions!: ContributionEntity[]
 }
 
-@Entity()
+@Entity("reviews")
 export class ReviewEntity implements Review {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @ManyToOne(() => ChangeSetEntity)
+  @ManyToOne(() => ChangeSetEntity, {
+    cascade: true,
+    onDelete: "CASCADE",
+    nullable: false
+  })
   @JoinColumn()
   changeSet!: ChangeSetEntity
 
@@ -79,7 +85,7 @@ export class ReviewEntity implements Review {
   contribution!: ContributionEntity
 }
 
-@Entity()
+@Entity("contribution_media")
 export class ContributionMediaEntity implements ContributionMedia {
   @PrimaryGeneratedColumn()
   id!: number
@@ -96,11 +102,13 @@ export class ContributionMediaEntity implements ContributionMedia {
   @Column({ type: "varchar" })
   comments!: string
 
-  @ManyToOne(() => ContributionEntity, (contribution) => contribution.media)
+  @ManyToOne(() => ContributionEntity, (contribution) => contribution.media, {
+    nullable: false
+  })
   contribution!: ContributionEntity
 }
 
-@Entity()
+@Entity("contributions")
 export class ContributionEntity implements Contribution {
   @PrimaryColumn({ type: "varchar" })
   id!: string
@@ -108,7 +116,11 @@ export class ContributionEntity implements Contribution {
   @Column("simple-json")
   root!: EntityRef
 
-  @ManyToOne(() => ChangeSetEntity)
+  @ManyToOne(() => ChangeSetEntity, {
+    cascade: true,
+    onDelete: "CASCADE",
+    nullable: false
+  })
   @JoinColumn()
   changeSet!: ChangeSetEntity
 
@@ -131,10 +143,18 @@ export class ContributionEntity implements Contribution {
 }
 
 // Database connection (SQLite)
+
+const DATABASE = process.env.CONTRIB_DB_PATH || "/etc/data/contributions.sqlite"
+const IS_DEVELOPMENT = process.env.NODE_ENV === "development"
+
+if (IS_DEVELOPMENT) {
+  console.log(`Running in development mode, using database at: ${DATABASE}`)
+}
+
 export const AppDataSource = new DataSource({
   type: "sqlite",
-  database: "/etc/data/contributions.sqlite",
-  synchronize: true, // Set to false in production
+  database: DATABASE,
+  synchronize: IS_DEVELOPMENT,
   logging: true,
   entities: [
     ChangeSetEntity,
@@ -147,12 +167,25 @@ export const AppDataSource = new DataSource({
   migrations: []
 })
 
+const getFullContribution = (
+  manager: EntityManager,
+  id: string
+): Promise<ContributionEntity | null> =>
+  manager.findOne(ContributionEntity, {
+    where: { id },
+    relations: ["changeSet", "reviews", "reviews.changeSet", "media", "batch"]
+  })
+
 // Initialize repositories
 export class DatabaseService {
   private contributionRepo: Repository<ContributionEntity>
+  private mediaRepo: Repository<ContributionMediaEntity>
+  private batchRepository: Repository<PublicationBatchEntity>
 
   constructor() {
     this.contributionRepo = AppDataSource.getRepository(ContributionEntity)
+    this.mediaRepo = AppDataSource.getRepository(ContributionMediaEntity)
+    this.batchRepository = AppDataSource.getRepository(PublicationBatchEntity)
   }
 
   async createContribution(
@@ -166,10 +199,7 @@ export class DatabaseService {
   }
 
   async getContribution(id: string): Promise<ContributionEntity | null> {
-    return this.contributionRepo.findOne({
-      where: { id },
-      relations: ["changeSet", "reviews", "reviews.changeSet", "media", "batch"]
-    })
+    return getFullContribution(AppDataSource.manager, id)
   }
 
   async listContributions(
@@ -177,6 +207,7 @@ export class DatabaseService {
       page?: number
       limit?: number
       status?: ContributionStatus | ContributionStatus[]
+      batchId?: number | null
       sortBy?: "author" | "timestamp"
       sortOrder?: "ASC" | "DESC"
     } = {}
@@ -190,59 +221,52 @@ export class DatabaseService {
     const {
       page = 1,
       status,
+      batchId,
       sortBy = "timestamp",
       sortOrder = "DESC"
     } = options
 
-    const skip = (page - 1) * limit
-
-    // Build the where clause for status filtering
+    // Build where clause
     const where: any = {}
     if (status !== undefined) {
-      where.status = Array.isArray(status) ? In(status) : status
+      if (Array.isArray(status)) {
+        where.status = In(status)
+      } else {
+        where.status = status
+      }
     }
 
-    // Build query with appropriate sorting
-    const queryBuilder = this.contributionRepo
-      .createQueryBuilder("contribution")
-      .leftJoinAndSelect("contribution.changeSet", "changeSet")
-      .leftJoinAndSelect("contribution.reviews", "reviews")
-      .leftJoinAndSelect("reviews.changeSet", "reviewChangeSet")
-
-    // Apply the where clause for status filtering
-    if (Object.keys(where).length > 0) {
-      queryBuilder.where(where)
+    if (batchId !== undefined) {
+      if (batchId === null) {
+        // Filter for contributions not assigned to any batch
+        where.batch = IsNull()
+      } else {
+        // Filter for contributions assigned to specific batch
+        where.batch = { id: batchId }
+      }
     }
 
-    // Apply sorting
+    // Build order clause
+    const order: any = {}
     if (sortBy === "author") {
-      queryBuilder.orderBy("changeSet.author", sortOrder)
+      order.changeSet = { author: sortOrder }
     } else if (sortBy === "timestamp") {
-      // This creates a subquery to get the latest timestamp among the
-      // contribution's changeset and all review changesets
-      queryBuilder
-        .addSelect(
-          `(
-        SELECT MAX(CASE 
-          WHEN reviews.id IS NULL THEN changeSet.timestamp 
-          ELSE GREATEST(changeSet.timestamp, reviewChangeSet.timestamp) 
-        END)
-        FROM contribution c
-        LEFT JOIN c.changeSet cs
-        LEFT JOIN c.reviews r
-        LEFT JOIN r.changeSet rcs
-        WHERE c.id = contribution.id
-      )`,
-          "latestTimestamp"
-        )
-        .orderBy("latestTimestamp", sortOrder)
+      order.changeSet = { timestamp: sortOrder }
     }
+    // Add secondary sort
+    order.id = "ASC"
 
-    // Add pagination
-    queryBuilder.skip(skip).take(limit)
+    // Calculate offset
+    const offset = (page - 1) * limit
 
-    // Execute the query
-    const [data, total] = await queryBuilder.getManyAndCount()
+    // Execute queries
+    const [data, total] = await this.contributionRepo.findAndCount({
+      where,
+      order,
+      skip: offset,
+      take: limit,
+      relations: ["changeSet", "media", "batch"]
+    })
 
     return {
       data,
@@ -258,6 +282,173 @@ export class DatabaseService {
   ): Promise<ContributionEntity | null> {
     await this.contributionRepo.update(id, data as Partial<ContributionEntity>)
     return this.getContribution(id)
+  }
+
+  async addMediaToContribution(
+    contributionId: string,
+    mediaData: ContributionMedia
+  ): Promise<ContributionEntity | null> {
+    return await AppDataSource.transaction(async (manager) => {
+      // 1. Check if contribution exists
+      const contribution = await manager.findOne(ContributionEntity, {
+        where: { id: contributionId },
+        relations: ["media"]
+      })
+
+      if (!contribution) {
+        return null
+      }
+
+      // 2. Create the media entity
+      const mediaEntity = new ContributionMediaEntity()
+      mediaEntity.type = mediaData.type
+      mediaEntity.file = mediaData.file
+      mediaEntity.name = mediaData.name
+      mediaEntity.comments = mediaData.comments
+      mediaEntity.contribution = contribution
+
+      await manager.save(ContributionMediaEntity, mediaEntity)
+
+      // 3. Return the updated contribution with all relations
+      return await getFullContribution(manager, contributionId)
+    })
+  }
+
+  // Add review to contribution
+  async addReviewToContribution(
+    contributionId: string,
+    reviewChangeSetData: {
+      author: string
+      title: string
+      comments: string
+      timestamp: number
+      changes: EntityChange[]
+    }
+  ): Promise<ContributionEntity | null> {
+    return await AppDataSource.transaction(async (manager) => {
+      // 1. Check if contribution exists and get current reviews
+      const contribution = await manager.findOne(ContributionEntity, {
+        where: { id: contributionId },
+        relations: ["reviews"]
+      })
+
+      if (!contribution) {
+        return null
+      }
+
+      // 2. Calculate the next stackOrder automatically
+      const maxStackOrder =
+        contribution.reviews.length > 0
+          ? Math.max(...contribution.reviews.map((review) => review.stackOrder))
+          : 0
+      const nextStackOrder = maxStackOrder + 1
+
+      // 3. Create the ChangeSet for the review
+      const changeSetEntity = new ChangeSetEntity()
+      changeSetEntity.author = reviewChangeSetData.author
+      changeSetEntity.title = reviewChangeSetData.title
+      changeSetEntity.comments = reviewChangeSetData.comments
+      changeSetEntity.timestamp = reviewChangeSetData.timestamp
+      changeSetEntity.changes = reviewChangeSetData.changes
+
+      const savedChangeSet = await manager.save(
+        ChangeSetEntity,
+        changeSetEntity
+      )
+
+      // 4. Create the review with automatic stackOrder
+      const reviewEntity = new ReviewEntity()
+      reviewEntity.changeSet = savedChangeSet
+      reviewEntity.stackOrder = nextStackOrder
+      reviewEntity.contribution = contribution
+
+      await manager.save(ReviewEntity, reviewEntity)
+
+      // 5. Return the updated contribution with all relations
+      return await getFullContribution(manager, contributionId)
+    })
+  }
+
+  // Get media by ID (helper method for deletion)
+  async getMediaById(mediaId: number): Promise<ContributionMediaEntity | null> {
+    return await this.mediaRepo.findOne({
+      where: { id: mediaId }
+    })
+  }
+
+  // Remove media metadata from database
+  async removeMedia(mediaId: number): Promise<boolean> {
+    const result = await this.mediaRepo.delete(mediaId)
+    return result.affected !== 0
+  }
+
+  // Create publication batch
+  async createPublicationBatch(batchData: {
+    title: string
+    comments: string
+  }): Promise<PublicationBatchEntity> {
+    const batchEntity = new PublicationBatchEntity()
+    batchEntity.title = batchData.title
+    batchEntity.comments = batchData.comments
+    batchEntity.published = null
+    return await this.batchRepository.save(batchEntity)
+  }
+
+  // Assign contribution to batch (or clear assignment with null batch_id)
+  async assignContributionToBatch(
+    contributionId: string,
+    batchId: number | null
+  ): Promise<ContributionEntity | null> {
+    return await AppDataSource.transaction(async (manager) => {
+      // Check if contribution exists
+      const contribution = await manager.findOne(ContributionEntity, {
+        where: { id: contributionId }
+      })
+      if (!contribution) {
+        return null
+      }
+      let batch = null
+      // If batchId is provided, verify the batch exists
+      if (batchId !== null) {
+        batch = await manager.findOne(PublicationBatchEntity, {
+          where: { id: batchId }
+        })
+
+        if (!batch) {
+          throw new Error(`Publication batch with ID ${batchId} not found`)
+        }
+      }
+      // Update the contribution's batch assignment
+      contribution.batch = batch ?? undefined
+      await manager.save(ContributionEntity, contribution)
+
+      // Return the updated contribution with all relations
+      return await getFullContribution(manager, contributionId)
+    })
+  }
+
+  // Get batches by publication status
+  async getBatchesByStatus(
+    filter: "all" | "published" | "pending"
+  ): Promise<PublicationBatchEntity[]> {
+    const queryBuilder = this.batchRepository
+      .createQueryBuilder("batch")
+      .leftJoinAndSelect("batch.contributions", "contributions")
+      .leftJoinAndSelect("contributions.changeSet", "changeSet")
+      .orderBy("batch.id", "DESC")
+    switch (filter) {
+      case "published":
+        queryBuilder.where("batch.published IS NOT NULL")
+        break
+      case "pending":
+        queryBuilder.where("batch.published IS NULL")
+        break
+      case "all":
+      default:
+        // No additional where clause for 'all'
+        break
+    }
+    return await queryBuilder.getMany()
   }
 
   async deleteContribution(id: string): Promise<boolean> {
