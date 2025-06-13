@@ -172,7 +172,6 @@ test("materialize new voyage with edits", () => {
         modified: [
           {
             kind: "owned",
-            property: cargoProp.uid,
             ownedEntity: {
               entityRef: {
                 id: "temp_cargo_123",
@@ -1038,7 +1037,6 @@ test("deep relational update with ownedList", () => {
                   id: 1955
                 }
               },
-              property: "Voyage_Enslavement relations",
               changes: [
                 {
                   kind: "ownedList",
@@ -1054,7 +1052,6 @@ test("deep relational update with ownedList", () => {
                         state: "new",
                         data: {}
                       },
-                      property: "EnslavementRelation_Enslavers in relation",
                       changes: [
                         {
                           kind: "linked",

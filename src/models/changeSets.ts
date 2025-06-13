@@ -93,7 +93,7 @@ export interface OwnedEntityListChange extends ListChangeBase {
   /**
    * Modified or new entities in the list.
    */
-  modified: OwnedEntityChange[]
+  modified: Omit<OwnedEntityChange, "property">[]
 }
 
 export type PropertyChange =
