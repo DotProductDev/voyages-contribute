@@ -1119,6 +1119,19 @@ export const VoyageSourceTypeSchema = mkBuilder({
   })
   .build()
 
+export const VoyageShortRefSchema = mkBuilder({
+  name: "Voyage Source Short Reference",
+  backingTable: "document_shortref",
+  contributionMode: "ReadOnly",
+  pkField: "id",
+  getLabel: (d) => d.name
+})
+  .addText({
+    label: "Name",
+    backingField: "name"
+  })
+  .build()
+
 export const VoyageSourceSchema = mkBuilder({
   name: "Voyage Source",
   backingTable: "document_source",
@@ -1137,10 +1150,6 @@ export const VoyageSourceSchema = mkBuilder({
     mode: EntityLinkEditMode.Select
   })
   .addText({
-    label: "Short reference",
-    backingField: "short_ref"
-  })
-  .addText({
     label: "Bibliography",
     description: "Formatted bibliography for the Document",
     backingField: "bib"
@@ -1151,6 +1160,12 @@ export const VoyageSourceSchema = mkBuilder({
     backingField: "date",
     linkedEntitySchema: SparseDateSchema,
     mode: EntityLinkEditMode.Own
+  })
+  .addLinkedEntity({
+    label: "Short reference",
+    backingField: "short_ref_id",
+    linkedEntitySchema: VoyageShortRefSchema,
+    mode: EntityLinkEditMode.Select
   })
   .addText({
     label: "Notes",

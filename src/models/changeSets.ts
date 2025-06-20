@@ -1,4 +1,4 @@
-import { AllProperties } from "./entities"
+import { AllProperties, getSchema } from "./entities"
 import {
   BaseFieldValue,
   cloneEntity,
@@ -495,11 +495,27 @@ export const combineChanges = (
         u.changes.splice(i, 1)
       } else if (uc.kind === "ownedList") {
         processRemoved(deletedEntries, uc, order)
-        validateAndGetProperty(uc)
+        const prop = validateAndGetProperty(uc)
+        const linkedSchema = getSchema(prop.linkedEntitySchema)
+        const childProp = linkedSchema.properties.find(
+          (p) => p.label === prop.childBackingProp
+        )
+        if (childProp === undefined) {
+          throw new Error(`Child property ${prop.childBackingProp} not found`)
+        }
         for (const m of uc.modified) {
+          // Automatically add a change to the primary key of owned items.
+          const ownedChanges = m.changes.filter(
+            (c) => c.property !== childProp.label
+          )
+          ownedChanges.push({
+            kind: "direct" as const,
+            property: childProp.uid,
+            changed: u.entityRef.id
+          })
           updatedEntries.push({
             type: "update" as const,
-            changes: m.changes,
+            changes: ownedChanges,
             entityRef: m.ownedEntity.entityRef,
             order
           })
@@ -680,7 +696,9 @@ const dropRefsFromChange = (
     ) {
       const next = {
         ...p,
-        modified: p.modified.filter((m) => !matchAnyRef(m.ownedEntity.entityRef, refs)),
+        modified: p.modified.filter(
+          (m) => !matchAnyRef(m.ownedEntity.entityRef, refs)
+        ),
         removed: p.removed.filter((r) => !matchAnyRef(r, refs))
       }
       return next.modified.length === 0 && next.removed.length === 0
@@ -722,7 +740,9 @@ const removeNoOpsPropChanges = (
   for (let i = result.length - 1; i >= 0; --i) {
     const c = changes[i]
     if (
-      (c.kind === "owned" && c.changes.length === 0) ||
+      (c.kind === "owned" &&
+        c.changes.length === 0 &&
+        c.ownedEntity.entityRef.type !== "new") ||
       (c.kind === "ownedList" &&
         c.modified.length === 0 &&
         c.removed.length === 0) ||

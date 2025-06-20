@@ -17,7 +17,7 @@ import { fetchEntities } from "./entityFetch"
 const createEmptyChangeSet = (): ChangeSet => ({
   author: "",
   changes: [],
-  id: 0,
+  id: "new",
   comments: "",
   timestamp: new Date().getDate(),
   title: ""

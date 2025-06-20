@@ -168,8 +168,8 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
           ? parseInt(req.query.batch_id)
           : null
         : undefined
-    const sortBy = (req.query.sortBy as "author" | "timestamp") || "timestamp"
-    const sortOrder = (req.query.sortOrder as "ASC" | "DESC") || "DESC"
+    const sortBy = (req.query.sortBy as "author" | "timestamp" | "id") || "id"
+    const sortOrder = (req.query.sortOrder as "ASC" | "DESC") || "ASC"
 
     // Parse status filter (can be single value or array)
     let status: ContributionStatus | ContributionStatus[] | undefined =
@@ -281,7 +281,7 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
         timestamp: Date.now()
       },
       media: existing?.media ?? [],
-      batch: existing?.batch ?? null
+      batch: req.body.batch ?? existing?.batch ?? null
     }
     const contribution = await dbService.createContribution(contributionData)
     res.status(201).json(contribution)
@@ -518,6 +518,14 @@ app.post("/create_batch", authenticateJWT, async (req, res) => {
       res.status(400).json({
         error: "Missing required fields",
         details: "title is required"
+      })
+      return
+    }
+    const existing = await dbService.getBatchByTitle(title)
+    if (existing) {
+      res.status(409).json({
+        error: "Batch with this title already exists",
+        existing
       })
       return
     }

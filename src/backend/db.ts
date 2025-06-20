@@ -28,8 +28,8 @@ import {
 
 @Entity("changesets")
 export class ChangeSetEntity implements ChangeSet {
-  @PrimaryGeneratedColumn()
-  id!: number
+  @PrimaryGeneratedColumn("uuid")
+  id!: string
 
   @Column({ type: "varchar" })
   author!: string
@@ -52,7 +52,7 @@ export class PublicationBatchEntity implements PublicationBatch {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ type: "varchar" })
+  @Column({ type: "varchar", unique: true })
   title!: string
 
   @Column({ type: "varchar" })
@@ -202,13 +202,19 @@ export class DatabaseService {
     return getFullContribution(AppDataSource.manager, id)
   }
 
+  async getBatchByTitle(title: string): Promise<PublicationBatchEntity | null> {
+    return this.batchRepository.findOne({
+      where: { title },
+    })
+  }
+
   async listContributions(
     options: {
       page?: number
       limit?: number
       status?: ContributionStatus | ContributionStatus[]
       batchId?: number | null
-      sortBy?: "author" | "timestamp"
+      sortBy?: "author" | "timestamp" | "id"
       sortOrder?: "ASC" | "DESC"
     } = {}
   ): Promise<{
@@ -217,13 +223,13 @@ export class DatabaseService {
     page: number
     limit: number
   }> {
-    const limit = Math.max(1000, options.limit ?? 10)
+    const limit = options.limit ?? 10
     const {
       page = 1,
       status,
       batchId,
-      sortBy = "timestamp",
-      sortOrder = "DESC"
+      sortBy = "id",
+      sortOrder = "ASC"
     } = options
 
     // Build where clause

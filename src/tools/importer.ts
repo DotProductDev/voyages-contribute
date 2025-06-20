@@ -1,9 +1,9 @@
 import {
-  EntityRef,
+  DirectPropertyChange,
   EntitySchema,
   EntityUpdate,
   getSchema,
-  materializeNew,
+  MaterializedEntity,
   OwnedEntityChange,
   Property,
   PropertyChange
@@ -25,18 +25,27 @@ export interface DataMappingBase {
 export interface ConstMapping extends DataMappingBase {
   readonly kind: "const"
   value: string | number | boolean
+  mode: "direct" | "linked"
 }
 
 export interface DirectColumnMapping extends DataMappingBase {
   readonly kind: "direct"
   header: string
+  formula?: (value: string) => string | null
+}
+
+export type CreateIfMissing = Omit<OwnedColumnMapping, "targetField"> & {
+  canonicalId?: (
+    | Omit<ConstMapping, "mode" | "targetField">
+    | Omit<DirectColumnMapping, "targetField">
+  )[]
 }
 
 export interface LinkedColumnMapping extends DataMappingBase {
   readonly kind: "linked"
   header: string
   lookupField: string
-  createIfMissing?: Omit<OwnedColumnMapping, "targetField">
+  createIfMissing?: CreateIfMissing
 }
 
 export interface OwnedColumnMapping extends DataMappingBase {
@@ -84,12 +93,37 @@ export type DataMapping =
 
 const newUid = randomUUID
 
+const getBlank = (schema: string, id?: string): MaterializedEntity => ({
+  entityRef: {
+    id: id ?? newUid(),
+    schema,
+    type: "new"
+  },
+  data: {},
+  state: "new"
+})
+
 export interface EntityLookUp {
   lookup: (
     schema: EntitySchema,
     field: string,
     value: string
-  ) => Promise<EntityRef | null>
+  ) => Promise<MaterializedEntity | null>
+}
+
+const applyFormula = (
+  formula: ((x: string) => string | null) | undefined,
+  value: string | null | undefined
+): string | null => {
+  if (formula === undefined || !value) {
+    return value ?? null
+  }
+  try {
+    return formula(value)
+  } catch (error) {
+    console.error(`Error applying formula "${formula}":`, error)
+    return value
+  }
 }
 
 export const MapRow = async (
@@ -97,6 +131,7 @@ export const MapRow = async (
   mapping: DataMapping,
   schema: EntitySchema,
   lookup: EntityLookUp,
+  errors: string[],
   context: Record<string, string> = {}
 ): Promise<PropertyChange[]> => {
   // Helper to resolve binding variables in strings
@@ -127,19 +162,58 @@ export const MapRow = async (
     localContext: Record<string, string> = context
   ): Promise<PropertyChange[]> => {
     if (mapping.kind === "const") {
-      const property = getProperty(mapping.targetField, currentSchema)
-      return [
-        {
-          kind: "direct",
-          property: property.uid,
-          changed: mapping.value
+      const property = getProperty(
+        resolveBinding(mapping.targetField, localContext),
+        currentSchema
+      )
+      const mappedValue =
+        typeof mapping.value === "string" && mapping.value.at(0) === "$"
+          ? (localContext[mapping.value] ?? mapping.value)
+          : mapping.value
+      if (mapping.mode === "direct") {
+        return [
+          {
+            kind: "direct",
+            property: property.uid,
+            changed: mappedValue
+          }
+        ]
+      }
+      if (mapping.mode === "linked") {
+        if (property.kind !== "linkedEntity") {
+          throw new Error("Invalid linked mapping target field")
         }
-      ]
+        const linkedSchema = getSchema(property.linkedEntitySchema)
+        const changed = await lookup.lookup(
+          linkedSchema,
+          linkedSchema.pkField,
+          String(mappedValue)
+        )
+        if (changed === null) {
+          errors.push(
+            `Failed to lookup linked entity ${linkedSchema.name} for const mapping: ${mappedValue}`
+          )
+          return []
+        }
+        return [
+          {
+            kind: "linked",
+            property: property.uid,
+            changed
+          }
+        ]
+      }
+      throw new Error(
+        `Invalid const mapping mode: ${mapping.mode} for property ${property.label}`
+      )
     }
     if (mapping.kind === "direct") {
-      const property = getProperty(mapping.targetField, currentSchema)
+      const property = getProperty(
+        resolveBinding(mapping.targetField, localContext),
+        currentSchema
+      )
       const header = resolveBinding(mapping.header, localContext)
-      const value = row[header]
+      const value = applyFormula(mapping.formula, row[header])
       return !value || value.trim() === ""
         ? []
         : [
@@ -151,7 +225,10 @@ export const MapRow = async (
           ]
     }
     if (mapping.kind === "linked") {
-      const property = getProperty(mapping.targetField, currentSchema)
+      const property = getProperty(
+        resolveBinding(mapping.targetField, localContext),
+        currentSchema
+      )
       if (property.kind !== "linkedEntity") {
         throw new Error("Invalid linked mapping target field")
       }
@@ -160,46 +237,64 @@ export const MapRow = async (
       if (!value || value.trim() === "") {
         return []
       }
-      // For now, assume entity exists - in real implementation would do lookup
       const referencedSchema = getSchema(property.linkedEntitySchema)
-      const entityRef: EntityRef | null = await lookup.lookup(
-        referencedSchema,
-        mapping.lookupField,
-        value.trim()
-      )
+      const entity: MaterializedEntity | null = mapping.lookupField
+        ? await lookup.lookup(
+            referencedSchema,
+            mapping.lookupField,
+            value.trim()
+          )
+        : null
       // If createIfMissing is specified and lookup fails, create new entity
-      if (entityRef === null && mapping.createIfMissing) {
+      if (entity === null && mapping.createIfMissing) {
         const createChanges = await Promise.all(
           mapping.createIfMissing.importUpdates.map((m) =>
             processMapping(m, referencedSchema, localContext)
           )
         )
+        let linkedId: string | undefined = undefined
+        if (mapping.createIfMissing.canonicalId) {
+          // Compute a canonical ID for the new entity
+          linkedId = ""
+          for (const idMapping of mapping.createIfMissing.canonicalId) {
+            if (idMapping.kind === "const") {
+              linkedId += String(idMapping.value)
+            } else if (idMapping.kind === "direct") {
+              const header = resolveBinding(idMapping.header, localContext)
+              const idValue = applyFormula(idMapping.formula, row[header])
+              linkedId += idValue ? idValue.toString() : undefined
+            }
+          }
+          if (linkedId === "") {
+            linkedId = undefined
+          }
+        }
         return [
           {
             kind: "linked",
             property: property.uid,
-            changed: materializeNew(referencedSchema, newUid()),
+            changed: getBlank(referencedSchema.name, linkedId),
             linkedChanges: createChanges.flat()
           }
         ]
+      } else if (entity === null) {
+        errors.push(
+          `Failed to lookup linked entity ${referencedSchema.name} on "${property.label}" for mapping: ${value}.`
+        )
       }
       return [
         {
           kind: "linked",
           property: property.uid,
-          changed:
-            entityRef === null
-              ? null
-              : {
-                  entityRef,
-                  data: {},
-                  state: "lazy"
-                }
+          changed: entity
         }
       ]
     }
     if (mapping.kind === "owned") {
-      const property = getProperty(mapping.targetField, currentSchema)
+      const property = getProperty(
+        resolveBinding(mapping.targetField, localContext),
+        currentSchema
+      )
       if (property.kind !== "entityOwned") {
         throw new Error("Invalid owned mapping target field")
       }
@@ -217,7 +312,7 @@ export const MapRow = async (
             {
               kind: "owned",
               property: property.uid,
-              ownedEntity: materializeNew(ownedSchema, newUid()),
+              ownedEntity: getBlank(ownedSchema.name),
               changes: ownedChanges
             }
           ]
@@ -241,23 +336,28 @@ export const MapRow = async (
           ).flat()
     }
     if (mapping.kind === "ownedList") {
-      const property = getProperty(mapping.targetField, currentSchema)
+      const property = getProperty(
+        resolveBinding(mapping.targetField, localContext),
+        currentSchema
+      )
       if (property.kind !== "ownedEntityList") {
         throw new Error("Invalid owned list mapping target field")
       }
       const itemSchema = getSchema(property.linkedEntitySchema)
       const addedEntities: Omit<OwnedEntityChange, "property">[] = []
       for (const itemMapping of mapping.addedToList) {
-        const itemChanges = await Promise.all(
-          itemMapping.importUpdates.map((m) =>
-            processMapping(m, itemSchema, localContext)
+        const itemChanges = (
+          await Promise.all(
+            itemMapping.importUpdates.map((m) =>
+              processMapping(m, itemSchema, localContext)
+            )
           )
-        )
+        ).flat()
         if (itemChanges.length > 0) {
           addedEntities.push({
             kind: "owned" as const,
-            ownedEntity: materializeNew(itemSchema, newUid()),
-            changes: itemChanges.flat()
+            ownedEntity: getBlank(itemSchema.name),
+            changes: itemChanges
           })
         }
       }
@@ -302,21 +402,43 @@ export const MapDataSourceToChangeSets = async (
   rows: Record<string, string>[],
   mapping: DataMapping,
   schema: EntitySchema,
-  lookup: EntityLookUp
+  lookup: EntityLookUp,
+  errors: Record<string, number[]>,
+  maxRows?: number
 ): Promise<EntityUpdate[]> => {
   const changes: EntityUpdate[] = []
-  for (const row of rows) {
-    const propChanges = await MapRow(row, mapping, schema, lookup)
-    if (propChanges.length > 0) {
-      changes.push({
-        type: "update",
-        entityRef: {
-          id: newUid(),
-          schema: schema.name,
-          type: "new"
-        },
-        changes: propChanges
-      })
+  const pkProp = schema.properties.find(
+    (p) => p.kind !== "table" && p.backingField === schema.pkField
+  )
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    if (maxRows && i >= maxRows) {
+      break
+    }
+    try {
+      const rowErrors: string[] = []
+      const propChanges = await MapRow(row, mapping, schema, lookup, rowErrors)
+      for (const e of rowErrors) {
+        (errors[e] ??= []).push(i)
+      }
+      if (propChanges.length > 0) {
+        const pkSet = propChanges.find(
+          (c) => c.kind === "direct" && c.property === pkProp?.uid
+        ) as DirectPropertyChange | undefined
+        changes.push({
+          type: "update",
+          entityRef: {
+            id: pkSet?.changed ? String(pkSet?.changed) : crypto.randomUUID(),
+            schema: schema.name,
+            type: "new"
+          },
+          changes: propChanges
+        })
+      }
+    } catch (error) {
+      console.error(
+        `Error processing row ${i + 1}: ${(error as Error).message}`
+      )
     }
   }
   return changes

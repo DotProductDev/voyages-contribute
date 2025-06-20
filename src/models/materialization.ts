@@ -235,7 +235,14 @@ const applyUpdateInternal = (
         if (!isMaterializedEntity(prev)) {
           throw new Error("Expected an entity for owned property update")
         }
-        if (!areMatch(prev.entityRef, c.ownedEntity.entityRef)) {
+        // Tolerate change of id in new owned items. This can happen because
+        // the materialized child entry gets a new random id while the property
+        // change may have its own random or canonical id set.        
+        if (
+          (prev.entityRef.type !== "new" ||
+            c.ownedEntity.entityRef.type !== "new") &&
+          !areMatch(prev.entityRef, c.ownedEntity.entityRef)
+        ) {
           throw new Error(
             `An owned entity is already set for ${
               prop.label

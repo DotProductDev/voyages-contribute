@@ -3,7 +3,7 @@ import { EntitySchema } from "./entities"
 import { MaterializedEntity } from "./materialization"
 
 export interface ChangeSet {
-  id: number
+  id: string
   author: string
   title: string
   comments: string
@@ -12,6 +12,7 @@ export interface ChangeSet {
 }
 
 export interface PublicationBatch {
+  id: number
   title: string
   comments: string
   /**

@@ -105,6 +105,9 @@ export class ApiBatchResolver implements BatchDataResolver {
       headers,
       body: JSON.stringify(batch)
     })
+    if (response.status !== 200) {
+      throw new Error(`API request failed with status ${response.status}: ${await response.text()}`)
+    }
     const results: Record<string, ResolvedEntityData[]> | { error: string } = await response.json()
     if (results.error) {
       throw new Error(`API error: ${results.error}`)

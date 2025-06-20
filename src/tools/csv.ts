@@ -15,7 +15,9 @@ AllMappings["Voyage"] = { mapping: voyageMapping, schema: VoyageSchema }
 export const importCSV = (
   apiUrl: string,
   schemaName: string,
-  filename: string
+  filename: string,
+  errors: Record<string, number[]>,
+  maxRows?: number
 ) => {
   const csvContent = fs.readFileSync(filename, "utf8")
   const parsed = Papa.parse(csvContent, {
@@ -30,5 +32,5 @@ export const importCSV = (
   }
   const { mapping, schema } = match
   const lookup = createApiLookup(apiUrl)
-  return MapDataSourceToChangeSets(data, mapping, schema, lookup)
+  return MapDataSourceToChangeSets(data, mapping, schema, lookup, errors, maxRows)
 }
