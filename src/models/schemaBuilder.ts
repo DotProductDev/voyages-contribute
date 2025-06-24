@@ -37,25 +37,31 @@ export class EntitySchemaBuilder {
 
   _mkUid = (suffix: string) => `${this.info.name}_${suffix}`
 
-  addBool = (prop: Omit<BoolProperty, "uid" | "kind" | "schema">) =>
+  addBool = <T extends Omit<BoolProperty, "uid" | "kind" | "schema">>(
+    prop: T
+  ) =>
     this.add<BoolProperty>({
+      uid: this._mkUid(prop.backingField),
       ...prop,
-      kind: "bool",
-      uid: this._mkUid(prop.backingField)
+      kind: "bool"
     })
 
-  addText = (prop: Omit<TextProperty, "uid" | "kind" | "schema">) =>
+  addText = <T extends Omit<TextProperty, "uid" | "kind" | "schema">>(
+    prop: T
+  ) =>
     this.add<TextProperty>({
+      uid: this._mkUid(prop.backingField),
       ...prop,
-      kind: "text",
-      uid: this._mkUid(prop.backingField)
+      kind: "text"
     })
 
-  addNumber = (prop: Omit<NumberProperty, "uid" | "kind" | "schema">) =>
+  addNumber = <T extends Omit<NumberProperty, "uid" | "kind" | "schema">>(
+    prop: T
+  ) =>
     this.add<NumberProperty>({
+      uid: this._mkUid(prop.backingField),
       ...prop,
-      kind: "number",
-      uid: this._mkUid(prop.backingField)
+      kind: "number"
     })
 
   addOwnerProp = (backingField: string, fkType?: "number" | "text") =>
@@ -70,34 +76,40 @@ export class EntitySchemaBuilder {
   addTable = (prop: Omit<TableProperty, "kind" | "schema">) =>
     this.add<TableProperty>({ ...prop, kind: "table" })
 
-  addLinkedEntity = (prop: BuilderEntityProp<LinkedEntityProperty>) =>
+  addLinkedEntity = <T extends BuilderEntityProp<LinkedEntityProperty>>(
+    prop: T
+  ) =>
     this.add<LinkedEntityProperty>({
+      uid: this._mkUid(prop.backingField || prop.label),
       ...prop,
       kind: "linkedEntity",
-      linkedEntitySchema: prop.linkedEntitySchema.name,
-      uid: this._mkUid(prop.backingField || prop.label)
+      linkedEntitySchema: prop.linkedEntitySchema.name
     })
 
-  addEntityOwned = (
-    prop: Omit<BuilderEntityProp<EntityOwnedProperty>, "backingField">
+  addEntityOwned = <
+    T extends Omit<BuilderEntityProp<EntityOwnedProperty>, "backingField">
+  >(
+    prop: T
   ) =>
     this.add<EntityOwnedProperty>({
+      uid: this._mkUid(prop.label),
       ...prop,
       backingField: "",
       kind: "entityOwned",
-      linkedEntitySchema: prop.linkedEntitySchema.name,
-      uid: this._mkUid(prop.label)
+      linkedEntitySchema: prop.linkedEntitySchema.name
     })
 
-  addOwnedEntityList = (
-    prop: Omit<BuilderEntityProp<OwnedEntityListProperty>, "backingField">
+  addOwnedEntityList = <
+    T extends Omit<BuilderEntityProp<OwnedEntityListProperty>, "backingField">
+  >(
+    prop: T
   ) =>
     this.add<OwnedEntityListProperty>({
+      uid: this._mkUid(prop.label),
       ...prop,
       backingField: "",
       kind: "ownedEntityList",
-      linkedEntitySchema: prop.linkedEntitySchema.name,
-      uid: this._mkUid(prop.label)
+      linkedEntitySchema: prop.linkedEntitySchema.name
     })
 
   build = (): EntitySchema => {
@@ -112,7 +124,11 @@ export class EntitySchemaBuilder {
 
   clone = (name: string) =>
     new EntitySchemaBuilder({ ...this.info, name }, this.built, [
-      ...this.props.map((p) => ({ ...p, uid: `${p.uid}_${name}`, schema: name }))
+      ...this.props.map((p) => ({
+        ...p,
+        uid: `${p.uid}_${name}`,
+        schema: name
+      }))
     ])
 
   setInfo = (

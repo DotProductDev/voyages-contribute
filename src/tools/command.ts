@@ -1,6 +1,8 @@
 import { Contribution, PublicationBatch } from "../models"
+import { AllMappings } from "./allMappings"
 import { importCSV } from "./csv"
 import readline from "node:readline"
+import { DebugCheckHeaders } from "./importer"
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -15,13 +17,16 @@ const asyncReadline = (question: string): Promise<string> => {
 
 const args = process.argv.slice(2)
 
-if (args.length < 3) {
-  console.error(
-    "Usage: tsx command.ts <apiUrl> <schemaName> <filename> (<maxRows>)"
-  )
-} else {
-  const maxRows = args.length >= 3 ? parseInt(args[3], 10) : undefined
-  const [apiUrl, schemaName, filename] = args
+const [cmd] = args
+if (cmd === "inspect" && args.length === 2) {
+  const [_, schemaName] = args
+  const { mapping } = AllMappings[schemaName]
+  const headers = [...DebugCheckHeaders(mapping)]
+  console.log(`${headers.length} headers are observed by the mapping for ${schemaName}.`)
+  console.log(JSON.stringify(headers))
+} else if (cmd === "import" && args.length >= 4) {
+  const maxRows = args.length >= 5 ? parseInt(args[4], 10) : undefined
+  const [_, apiUrl, schemaName, filename] = args
   const errors: Record<string, number[]> = {}
   const updates = await importCSV(apiUrl, schemaName, filename, errors, maxRows)
   if (Object.keys(errors).length > 0) {
@@ -101,4 +106,10 @@ if (args.length < 3) {
     `Successfully pushed ${pushed}/${updates.length} updates to the API for batch ${batch.title}.`
   )
   process.exit(0)
+} else {
+  console.error(
+    `Usage: tsx command.ts <command='import'|'inspect'> 
+      import <apiUrl> <schemaName> <filename> (<maxRows>)
+      inspect <schemaName>`
+  )
 }

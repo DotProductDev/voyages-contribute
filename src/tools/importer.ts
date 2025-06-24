@@ -5,8 +5,10 @@ import {
   getSchema,
   MaterializedEntity,
   OwnedEntityChange,
+  OwnedEntityListChange,
   Property,
-  PropertyChange
+  PropertyChange,
+  TableChange
 } from "../models"
 import { randomUUID } from "crypto"
 
@@ -19,8 +21,12 @@ export interface DataMappingBase {
     | "const"
     | "conditional"
     | "multiple"
+    | "table"
+    | "ignored"
   targetField: string
 }
+
+export type ColumnFormula = (value: string) => string | null
 
 export interface ConstMapping extends DataMappingBase {
   readonly kind: "const"
@@ -31,7 +37,12 @@ export interface ConstMapping extends DataMappingBase {
 export interface DirectColumnMapping extends DataMappingBase {
   readonly kind: "direct"
   header: string
-  formula?: (value: string) => string | null
+  formula?: ColumnFormula
+}
+
+export interface TableColumnMapping extends DataMappingBase {
+  readonly kind: "table"
+  mappings: Omit<DirectColumnMapping, "kind">[]
 }
 
 export type CreateIfMissing = Omit<OwnedColumnMapping, "targetField"> & {
@@ -45,6 +56,7 @@ export interface LinkedColumnMapping extends DataMappingBase {
   readonly kind: "linked"
   header: string
   lookupField: string
+  lookupFormula?: ColumnFormula
   createIfMissing?: CreateIfMissing
 }
 
@@ -82,6 +94,12 @@ export interface OwnedListColumnMapping extends DataMappingBase {
   addedToList: Omit<OwnedColumnMapping, "targetField">[]
 }
 
+export interface IgnoredColumnMapping {
+  readonly kind: "ignored"
+  header: string
+  reason: string
+}
+
 export type DataMapping =
   | ConstMapping
   | DirectColumnMapping
@@ -90,6 +108,8 @@ export type DataMapping =
   | OwnedListColumnMapping
   | ConditionalMapping
   | MultipleMapping
+  | TableColumnMapping
+  | IgnoredColumnMapping
 
 const newUid = randomUUID
 
@@ -233,7 +253,11 @@ export const MapRow = async (
         throw new Error("Invalid linked mapping target field")
       }
       const header = resolveBinding(mapping.header, localContext)
-      const value = row[header]
+      let value: string | null | undefined = row[header]
+      if (mapping.lookupFormula && value) {
+        // Apply the lookup formula to the value
+        value = applyFormula(mapping.lookupFormula, value)
+      }
       if (!value || value.trim() === "") {
         return []
       }
@@ -374,6 +398,8 @@ export const MapRow = async (
     }
     if (mapping.kind === "multiple") {
       const allChanges: PropertyChange[] = []
+      // Merge owned list changes to the same property.
+      const merged: OwnedEntityListChange[] = []
       for (const binding of mapping.bindings) {
         // Merge contexts.
         const localContext = {
@@ -387,10 +413,52 @@ export const MapRow = async (
             currentSchema,
             localContext
           )
-          allChanges.push(...nestedChanges)
+          for (const change of nestedChanges) {
+            if (change.kind === "ownedList") {
+              const existing = merged.find(
+                (m) => m.property === change.property
+              )
+              if (existing) {
+                existing.modified.push(...change.modified)
+              } else {
+                merged.push(change)
+              }
+            } else {
+              allChanges.push(change)
+            }
+          }
         }
       }
+      allChanges.push(...merged)
       return allChanges
+    }
+    if (mapping.kind === "table") {
+      const property = getProperty(
+        resolveBinding(mapping.targetField, localContext),
+        currentSchema
+      )
+      if (property.kind !== "table") {
+        throw new Error("Invalid table mapping target field")
+      }
+      const change: TableChange = {
+        kind: "table",
+        property: property.uid,
+        changes: mapping.mappings.reduce(
+          (agg, item) => {
+            const header = resolveBinding(item.header, localContext)
+            const value = applyFormula(item.formula, row[header])
+            if (value && value.trim() !== "") {
+              agg[item.header] = value.trim()
+            }
+            return agg
+          },
+          {} as Record<string, number | string>
+        )
+      }
+      return Object.keys(change.changes).length > 0 ? [change] : []
+    }
+    if (mapping.kind === "ignored") {
+      return []
     }
     throw new Error(`Unknown mapping kind: ${(mapping as any).kind}`)
   }
@@ -419,7 +487,7 @@ export const MapDataSourceToChangeSets = async (
       const rowErrors: string[] = []
       const propChanges = await MapRow(row, mapping, schema, lookup, rowErrors)
       for (const e of rowErrors) {
-        (errors[e] ??= []).push(i)
+        ;(errors[e] ??= []).push(i)
       }
       if (propChanges.length > 0) {
         const pkSet = propChanges.find(
@@ -442,4 +510,62 @@ export const MapDataSourceToChangeSets = async (
     }
   }
   return changes
+}
+
+const internalDebugCheckHeaders = (
+  mapping: DataMapping,
+  ctx: Record<string, string>,
+  headers: Set<string>
+) => {
+  if (mapping.kind === "direct") {
+    headers.add(ctx[mapping.header] ?? mapping.header)
+  } else if (mapping.kind === "linked") {
+    headers.add(ctx[mapping.header] ?? mapping.header)
+    if (mapping.createIfMissing) {
+      mapping.createIfMissing.importUpdates.forEach((m) =>
+        internalDebugCheckHeaders(m, ctx, headers)
+      )
+      mapping.createIfMissing.canonicalId?.forEach((idMapping) => {
+        if (idMapping.kind === "direct") {
+          headers.add(ctx[mapping.header] ?? mapping.header)
+        }
+      })
+    }
+  } else if (mapping.kind === "owned") {
+    mapping.importUpdates.forEach((m) => internalDebugCheckHeaders(m, ctx, headers))
+  } else if (mapping.kind === "ownedList") {
+    mapping.addedToList.forEach((item) =>
+      item.importUpdates.forEach((m) => internalDebugCheckHeaders(m, ctx, headers))
+    )
+  } else if (mapping.kind === "conditional") {
+    mapping.anyNonEmpty.forEach((header) => headers.add(ctx[header] ?? header))
+    mapping.mappings.forEach((m) => internalDebugCheckHeaders(m, ctx, headers))
+  } else if (mapping.kind === "multiple") {
+    mapping.bindings.forEach((binding) => {
+      const localContext = { ...ctx, ...binding }
+      mapping.mappings.forEach((m) =>
+        internalDebugCheckHeaders(m, localContext, headers)
+      )
+    })
+  } else if (mapping.kind === "table") {
+    mapping.mappings.forEach((item) => {
+      headers.add(ctx[item.header] ?? item.header)
+    })
+  } else if (mapping.kind === "ignored") {
+    headers.add(mapping.header)
+  } else if (mapping.kind !== "const") {
+    throw new Error(`Unknown mapping kind: ${(mapping as any).kind}`)
+  }
+}
+
+/**
+ * A method that enumerates all headers used in the mapping. This is useful
+ * to ensure that all columns are actually used.
+ **/
+export const DebugCheckHeaders = (mapping: DataMapping)
+: Set<string> => {
+  const headers = new Set<string>()
+  const ctx: Record<string, string> = {}
+  internalDebugCheckHeaders(mapping, ctx, headers)
+  return headers
 }

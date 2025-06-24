@@ -432,11 +432,254 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
   getLabel: (_) => "Slave numbers"
 })
   .addNumber({
+    label: "Captive deaths before leaving Africa",
+    backingField: "slave_deaths_before_africa",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Captive deaths between Africa and Americas",
+    backingField: "slave_deaths_between_africa_america",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Captive deaths between arrival and sale",
+    backingField: "slave_deaths_between_arrival_and_sale",
+    section: "Numbers"
+  })
+  .addNumber({
     label: "Captives intended from first port of purchase",
-    description: "Captives intended from first port of purchase",
     backingField: "num_slaves_intended_first_port",
     section: "Numbers"
   })
+  .addNumber({
+    label: "Captives intended from second port of purchase",
+    backingField: "num_slaves_intended_second_port",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Number of captives carried from first port of purchase",
+    backingField: "num_slaves_carried_first_port",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Number of captives carried from second port of purchase",
+    backingField: "num_slaves_carried_second_port",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Number of captives carried from third port of purchase",
+    backingField: "num_slaves_carried_third_port",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives purchased",
+    backingField: "total_num_slaves_purchased",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives on board at departure from last port",
+    backingField: "total_num_slaves_dep_last_slaving_port",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives arrived at first port of disembarkation",
+    backingField: "total_num_slaves_arr_first_port_embark",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Number of captives disembarked at first place",
+    backingField: "num_slaves_disembark_first_place",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Number of captives disembarked at second place",
+    backingField: "num_slaves_disembark_second_place",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Number of captives disembarked at third place",
+    backingField: "num_slaves_disembark_third_place",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives embarked (imputed)",
+    backingField: "imp_total_num_slaves_embarked",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives disembarked (imputed)",
+    backingField: "imp_total_num_slaves_disembarked",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Sterling cash price in Jamaica (imputed)",
+    backingField: "imp_jamaican_cash_price",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Imputed number of captive deaths during Middle Passage",
+    backingField: "imp_mortality_during_voyage",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives embarked with age identified",
+    backingField: "total_slaves_embarked_age_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives embarked with gender identified",
+    backingField: "total_slaves_embarked_gender_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives landed with age identified",
+    backingField: "total_slaves_landed_age_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives landed with gender identified",
+    backingField: "total_slaves_landed_gender_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives identified by age at departure or arrival",
+    backingField: "total_slaves_dept_or_arr_age_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives identified by gender at departure or arrival",
+    backingField: "total_slaves_dept_or_arr_gender_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Imputed number of captives embarked for mortality calculation",
+    backingField: "imp_slaves_embarked_for_mortality",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives embarked with age and gender identified",
+    backingField: "total_slaves_embarked_age_gender_identified",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Total captives identified by age and gender among landed",
+    backingField: "total_slaves_by_age_gender_identified_among_landed",
+    section: "Numbers"
+  })
+  .addNumber({
+    label:
+      "Total captives identified by age and gender at departure or arrival",
+    backingField: "total_slaves_by_age_gender_identified_departure_or_arrival",
+    section: "Numbers"
+  })
+  .addNumber({
+    label: "Percentage of boys among embarked captives",
+    backingField: "percentage_boys_among_embarked_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Child ratio among embarked captives",
+    backingField: "child_ratio_among_embarked_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of girls among embarked captives",
+    backingField: "percentage_girls_among_embarked_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Male ratio among embarked captives",
+    backingField: "male_ratio_among_embarked_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of men among embarked captives",
+    backingField: "percentage_men_among_embarked_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of women among embarked captives",
+    backingField: "percentage_women_among_embarked_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of boys among landed captives",
+    backingField: "percentage_boys_among_landed_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Child ratio among landed captives",
+    backingField: "child_ratio_among_landed_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of girls among landed captives",
+    backingField: "percentage_girls_among_landed_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Male ratio among landed captives",
+    backingField: "male_ratio_among_landed_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of men among landed captives",
+    backingField: "percentage_men_among_landed_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage of women among landed captives",
+    backingField: "percentage_women_among_landed_slaves",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage men on voyage",
+    backingField: "percentage_men",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage women on voyage",
+    backingField: "percentage_women",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage boy on voyage",
+    backingField: "percentage_boy",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage girl on voyage",
+    backingField: "percentage_girl",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage male on voyage",
+    backingField: "percentage_male",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage children on voyage",
+    backingField: "percentage_child",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage adult on voyage",
+    backingField: "percentage_adult",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Percentage female on voyage",
+    backingField: "percentage_female",
+    section: "Ratios"
+  })
+  .addNumber({
+    label: "Imputed mortality ratio",
+    backingField: "imp_mortality_ratio",
+    section: "Ratios"
+  })
+
+  // Table for characteristics
+
   .addTable({
     uid: "sn_characteristics",
     label: "Slave characteristics",
@@ -453,6 +696,9 @@ export const VoyageSlaveNumbersSchema = mkBuilder({
     cellField: (col, row) =>
       `${slaveNumberPrefixes[col]}_${slaveNumberSuffixes[row]}`
   })
+
+  // Table for imputed characteristics
+
   .addTable({
     uid: "sn_characteristics_imputed",
     label: "Slave characteristics (imputed)",
@@ -526,19 +772,19 @@ export const VoyageDatesSchema = mkBuilder({
     mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
-    label: "Date of first disembarkation of captives",
-    backingField: "first_dis_of_slaves_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema,
-    mode: EntityLinkEditMode.Own
-  })
-  .addLinkedEntity({
     label: "Date vessel departed Africa",
     backingField: "date_departed_africa_sparsedate_id",
     linkedEntitySchema: SparseDateSchema,
     mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
-    label: "Date of arrival at second place of landing",
+    label: "Date of first disembarkation of captives",
+    backingField: "first_dis_of_slaves_sparsedate_id",
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
+  })
+  .addLinkedEntity({
+    label: "Date of second disembarkation of captives",
     backingField: "arrival_at_second_place_landing_sparsedate_id",
     linkedEntitySchema: SparseDateSchema,
     mode: EntityLinkEditMode.Own
@@ -1167,6 +1413,11 @@ export const VoyageSourceSchema = mkBuilder({
     linkedEntitySchema: VoyageShortRefSchema,
     mode: EntityLinkEditMode.Select
   })
+  .addNumber({
+    label: "Short reference id",
+    backingField: "short_ref_id",
+    uid: "voyage_source_numeric_short_ref_id",
+  })
   .addText({
     label: "Notes",
     backingField: "notes"
@@ -1185,7 +1436,8 @@ export const VoyageSourceConnectionSchema = mkBuilder({
     label: "Source",
     backingField: "source_id",
     linkedEntitySchema: VoyageSourceSchema,
-    mode: EntityLinkEditMode.Create
+    mode: EntityLinkEditMode.Create,
+    notNull: true
   })
   .addText({
     label: "Page range",
@@ -1255,7 +1507,7 @@ export const VoyageSchema = mkBuilder({
   .addEntityOwned({
     oneToOneBackingField: "voyage_id",
     linkedEntitySchema: VoyageSlaveNumbersSchema,
-    label: "Slave Numbers",
+    label: "Slave numbers",
     section: "Slave Numbers",
     notNull: true
   })

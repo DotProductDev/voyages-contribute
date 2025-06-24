@@ -1,16 +1,9 @@
 // Node.js file reading
 import fs from "fs"
 import Papa from "papaparse"
-import { DataMapping, MapDataSourceToChangeSets } from "./importer"
+import { MapDataSourceToChangeSets } from "./importer"
 import { createApiLookup } from "./lookup"
-import { voyageMapping } from "./voyageMapping"
-import { EntitySchema, VoyageSchema } from "../models/entities"
-
-const AllMappings: Record<
-  string,
-  { mapping: DataMapping; schema: EntitySchema }
-> = {}
-AllMappings["Voyage"] = { mapping: voyageMapping, schema: VoyageSchema }
+import { AllMappings } from "./allMappings"
 
 export const importCSV = (
   apiUrl: string,

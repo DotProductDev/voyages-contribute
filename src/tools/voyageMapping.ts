@@ -269,6 +269,22 @@ export const voyageMapping: DataMapping = {
             {
               $dateHeader: "dateleftafr",
               $targetField: "Date vessel departed Africa"
+            },
+            {
+              $dateHeader: "dateland1",
+              $targetField: "Date of first disembarkation of captives"
+            },
+            {
+              $dateHeader: "dateland2",
+              $targetField: "Date of second disembarkation of captives"
+            },
+            {
+              $dateHeader: "dateland3",
+              $targetField: "Date of third disembarkation of captives"
+            },
+            {
+              $dateHeader: "datedepam",
+              $targetField: "Date that vessel left last slaving port"
             }
           ],
           mappings: [
@@ -318,6 +334,566 @@ export const voyageMapping: DataMapping = {
                   }
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+
+    // Slave numbers
+
+    {
+      kind: "owned",
+      targetField: "Slave numbers",
+      importUpdates: [
+        {
+          kind: "direct",
+          targetField: "Captive deaths before leaving Africa",
+          header: "sladafri"
+        },
+        {
+          kind: "direct",
+          targetField: "Captive deaths between Africa and Americas",
+          header: "sladvoy"
+        },
+        {
+          kind: "direct",
+          targetField: "Captive deaths between arrival and sale",
+          header: "sladamer"
+        },
+        {
+          kind: "direct",
+          targetField: "Captives intended from first port of purchase",
+          header: "slintend"
+        },
+        {
+          kind: "direct",
+          targetField: "Captives intended from second port of purchase",
+          header: "slinten2"
+        },
+        {
+          kind: "direct",
+          targetField: "Number of captives carried from first port of purchase",
+          header: "ncar13"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Number of captives carried from second port of purchase",
+          header: "ncar15"
+        },
+        {
+          kind: "direct",
+          targetField: "Number of captives carried from third port of purchase",
+          header: "ncar17"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives purchased",
+          header: "tslavesp"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives on board at departure from last port",
+          header: "tslavesd"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives arrived at first port of disembarkation",
+          header: "slaarriv"
+        },
+        {
+          kind: "direct",
+          targetField: "Number of captives disembarked at first place",
+          header: "slas32"
+        },
+        {
+          kind: "direct",
+          targetField: "Number of captives disembarked at second place",
+          header: "slas36"
+        },
+        {
+          kind: "direct",
+          targetField: "Number of captives disembarked at third place",
+          header: "slas39"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives embarked (imputed)",
+          header: "slaximp"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives disembarked (imputed)",
+          header: "slamimp"
+        },
+        {
+          kind: "direct",
+          targetField: "Sterling cash price in Jamaica (imputed)",
+          header: "jamcaspr"
+        },
+        {
+          kind: "direct",
+          targetField: "Imputed number of captive deaths during Middle Passage",
+          header: "vymrtimp"
+        },
+
+        // Table entries for characteristics (MEN1, WOMEN1, etc.)
+        {
+          kind: "table",
+          targetField: "Slave characteristics",
+          mappings: [
+            {
+              targetField: "num_men_embark_first_port_purchase",
+              header: "men1"
+            },
+            {
+              targetField: "num_women_embark_first_port_purchase",
+              header: "women1"
+            },
+            {
+              targetField: "num_boy_embark_first_port_purchase",
+              header: "boy1"
+            },
+            {
+              targetField: "num_girl_embark_first_port_purchase",
+              header: "girl1"
+            },
+            {
+              targetField: "num_adult_embark_first_port_purchase",
+              header: "adult1"
+            },
+            {
+              targetField: "num_child_embark_first_port_purchase",
+              header: "child1"
+            },
+            {
+              targetField: "num_infant_embark_first_port_purchase",
+              header: "infant1"
+            },
+            {
+              targetField: "num_males_embark_first_port_purchase",
+              header: "male1"
+            },
+            {
+              targetField: "num_females_embark_first_port_purchase",
+              header: "female1"
+            },
+            {
+              targetField: "num_men_died_middle_passage",
+              header: "men2"
+            },
+            {
+              targetField: "num_women_died_middle_passage",
+              header: "women2"
+            },
+            {
+              targetField: "num_boy_died_middle_passage",
+              header: "boy2"
+            },
+            {
+              targetField: "num_girl_died_middle_passage",
+              header: "girl2"
+            },
+            {
+              targetField: "num_adult_died_middle_passage",
+              header: "adult2"
+            },
+            {
+              targetField: "num_child_died_middle_passage",
+              header: "child2"
+            },
+            {
+              targetField: "num_infant_died_middle_passage",
+              header: "infant2"
+            },
+            {
+              targetField: "num_males_died_middle_passage",
+              header: "male2"
+            },
+            {
+              targetField: "num_females_died_middle_passage",
+              header: "female2"
+            },
+            {
+              targetField: "num_men_disembark_first_landing",
+              header: "men3"
+            },
+            {
+              targetField: "num_women_disembark_first_landing",
+              header: "women3"
+            },
+            {
+              targetField: "num_boy_disembark_first_landing",
+              header: "boy3"
+            },
+            {
+              targetField: "num_girl_disembark_first_landing",
+              header: "girl3"
+            },
+            {
+              targetField: "num_adult_disembark_first_landing",
+              header: "adult3"
+            },
+            {
+              targetField: "num_child_disembark_first_landing",
+              header: "child3"
+            },
+            {
+              targetField: "num_infant_disembark_first_landing",
+              header: "infant3"
+            },
+            {
+              targetField: "num_males_disembark_first_landing",
+              header: "male3"
+            },
+            {
+              targetField: "num_females_disembark_first_landing",
+              header: "female3"
+            },
+            {
+              targetField: "num_men_embark_second_port_purchase",
+              header: "men4"
+            },
+            {
+              targetField: "num_women_embark_second_port_purchase",
+              header: "women4"
+            },
+            {
+              targetField: "num_boy_embark_second_port_purchase",
+              header: "boy4"
+            },
+            {
+              targetField: "num_girl_embark_second_port_purchase",
+              header: "girl4"
+            },
+            {
+              targetField: "num_adult_embark_second_port_purchase",
+              header: "adult4"
+            },
+            {
+              targetField: "num_child_embark_second_port_purchase",
+              header: "child4"
+            },
+            {
+              targetField: "num_infant_embark_second_port_purchase",
+              header: "infant4"
+            },
+            {
+              targetField: "num_males_embark_second_port_purchase",
+              header: "male4"
+            },
+            {
+              targetField: "num_females_embark_second_port_purchase",
+              header: "female4"
+            },
+            {
+              targetField: "num_men_embark_third_port_purchase",
+              header: "men5"
+            },
+            {
+              targetField: "num_women_embark_third_port_purchase",
+              header: "women5"
+            },
+            {
+              targetField: "num_boy_embark_third_port_purchase",
+              header: "boy5"
+            },
+            {
+              targetField: "num_girl_embark_third_port_purchase",
+              header: "girl5"
+            },
+            {
+              targetField: "num_adult_embark_third_port_purchase",
+              header: "adult5"
+            },
+            {
+              targetField: "num_child_embark_third_port_purchase",
+              header: "child5"
+            },
+            {
+              targetField: "num_infant_embark_third_port_purchase",
+              header: "infant5"
+            },
+            {
+              targetField: "num_males_embark_third_port_purchase",
+              header: "male5"
+            },
+            {
+              targetField: "num_females_embark_third_port_purchase",
+              header: "female5"
+            },
+            {
+              targetField: "num_men_disembark_second_landing",
+              header: "men6"
+            },
+            {
+              targetField: "num_women_disembark_second_landing",
+              header: "women6"
+            },
+            {
+              targetField: "num_boy_disembark_second_landing",
+              header: "boy6"
+            },
+            {
+              targetField: "num_girl_disembark_second_landing",
+              header: "girl6"
+            },
+            {
+              targetField: "num_adult_disembark_second_landing",
+              header: "adult6"
+            },
+            {
+              targetField: "num_child_disembark_second_landing",
+              header: "child6"
+            },
+            {
+              targetField: "num_infant_disembark_second_landing",
+              header: "infant6"
+            },
+            {
+              targetField: "num_males_disembark_second_landing",
+              header: "male6"
+            },
+            {
+              targetField: "num_females_disembark_second_landing",
+              header: "female6"
+            }
+          ]
+        },
+
+        // Imputed characteristics - back to descriptive labels for direct fields
+        {
+          kind: "direct",
+          targetField: "Total captives embarked with age identified",
+          header: "slavema1"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives embarked with gender identified",
+          header: "slavemx1"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives landed with age identified",
+          header: "slavema3"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives landed with gender identified",
+          header: "slavemx3"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Total captives identified by age at departure or arrival",
+          header: "slavema7"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Total captives identified by gender at departure or arrival",
+          header: "slavemx7"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Imputed number of captives embarked for mortality calculation",
+          header: "tslmtimp"
+        },
+        {
+          kind: "direct",
+          targetField: "Total captives embarked with age and gender identified",
+          header: "slavmax1"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Total captives identified by age and gender among landed",
+          header: "slavmax3"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Total captives identified by age and gender at departure or arrival",
+          header: "slavmax7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of boys among embarked captives",
+          header: "boyrat1"
+        },
+        {
+          kind: "direct",
+          targetField: "Child ratio among embarked captives",
+          header: "chilrat1"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of girls among embarked captives",
+          header: "girlrat1"
+        },
+        {
+          kind: "direct",
+          targetField: "Male ratio among embarked captives",
+          header: "malrat1"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of men among embarked captives",
+          header: "menrat1"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of women among embarked captives",
+          header: "womrat1"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of boys among landed captives",
+          header: "boyrat3"
+        },
+        {
+          kind: "direct",
+          targetField: "Child ratio among landed captives",
+          header: "chilrat3"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of girls among landed captives",
+          header: "girlrat3"
+        },
+        {
+          kind: "direct",
+          targetField: "Male ratio among landed captives",
+          header: "malrat3"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of men among landed captives",
+          header: "menrat3"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage of women among landed captives",
+          header: "womrat3"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage men on voyage",
+          header: "menrat7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage women on voyage",
+          header: "womrat7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage boy on voyage",
+          header: "boyrat7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage girl on voyage",
+          header: "girlrat7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage male on voyage",
+          header: "malrat7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage children on voyage",
+          header: "chilrat7"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage adult on voyage",
+          header: "percentage_adult"
+        },
+        {
+          kind: "direct",
+          targetField: "Percentage female on voyage",
+          header: "percentage_female"
+        },
+        {
+          kind: "direct",
+          targetField: "Imputed mortality ratio",
+          header: "vymrtrat"
+        }
+      ]
+    },
+
+    // Voyage sources
+    {
+      kind: "multiple",
+      bindings: [
+        {
+          $sourceHeader: "sourcea"
+        },
+        {
+          $sourceHeader: "sourceb"
+        },
+        {
+          $sourceHeader: "sourcec"
+        },
+        {
+          $sourceHeader: "sourced"
+        },
+        {
+          $sourceHeader: "sourcee"
+        },
+        {
+          $sourceHeader: "sourcef"
+        },
+        {
+          $sourceHeader: "sourceg"
+        },
+        {
+          $sourceHeader: "sourceh"
+        },
+        {
+          $sourceHeader: "sourcei"
+        },
+        {
+          $sourceHeader: "sourcej"
+        },
+        {
+          $sourceHeader: "sourcek"
+        },
+        {
+          $sourceHeader: "sourcel"
+        },
+        {
+          $sourceHeader: "sourcem"
+        }
+      ],
+      mappings: [
+        {
+          kind: "ownedList",
+          targetField: "Sources",
+          addedToList: [
+            {
+              kind: "owned",
+              importUpdates: [
+                {
+                  kind: "linked",
+                  targetField: "Source",
+                  header: "$sourceHeader",
+                  lookupField: "Title"
+                },
+                {
+                  kind: "direct",
+                  targetField: "Page range",
+                  header: "$sourceHeader",
+                  formula: (d: string) => {
+                    const split = d.indexOf(",")
+                    return split <= 0 ? null : d.substring(split + 1).trim()
+                  }
+                }
+              ]
             }
           ]
         }
@@ -485,6 +1061,19 @@ export const voyageMapping: DataMapping = {
           ]
         }
       ]
+    },
+
+    // Ignored columns
+
+    {
+      kind: "ignored",
+      header: "constreg",
+      reason: "The region is inferred from the place"
+    },
+    {
+      kind: "ignored",
+      header: "regisreg",
+      reason: "The region is inferred from the place"
     }
   ]
 }
