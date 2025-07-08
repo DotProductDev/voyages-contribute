@@ -1,8 +1,8 @@
 import { Contribution, PublicationBatch } from "../models"
 import { AllMappings } from "./allMappings"
-import { importCSV } from "./csv"
+import { getCSVHeaders, importCSV } from "./csv"
 import readline from "node:readline"
-import { DebugCheckHeaders } from "./importer"
+import { debugCheckHeaders } from "./importer"
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -18,12 +18,32 @@ const asyncReadline = (question: string): Promise<string> => {
 const args = process.argv.slice(2)
 
 const [cmd] = args
-if (cmd === "inspect" && args.length === 2) {
+if (cmd === "inspect" && args.length >= 2) {
   const [_, schemaName] = args
   const { mapping } = AllMappings[schemaName]
-  const headers = [...DebugCheckHeaders(mapping)]
-  console.log(`${headers.length} headers are observed by the mapping for ${schemaName}.`)
-  console.log(JSON.stringify(headers))
+  const headers = debugCheckHeaders(mapping)
+  if (args.length >= 3) {
+    const csvHeaders = await getCSVHeaders(args[2])
+    const csvHeadersSet = new Set<string>(csvHeaders)
+    // Determine any headers which are not in the mapping, and vice versa.
+    const missingFromImport = csvHeaders.filter((h) => !headers.has(h))
+    const missingFromData = [...headers].filter((h) => !csvHeadersSet.has(h))
+    if (missingFromImport.length > 0) {
+      console.log(
+        `WARNING: The following (${missingFromImport.length}) headers are in the CSV but not in the mapping:
+        ${missingFromImport.join(", ")}`
+      )
+    }
+    if (missingFromData.length > 0) {
+      console.log(
+        `ERROR: The following (${missingFromData.length}) headers were not found in the CSV:
+        ${missingFromData.join(", ")}`
+      )
+    }
+  } else {
+    console.log(JSON.stringify(headers))
+  }
+  process.exit(0)
 } else if (cmd === "import" && args.length >= 4) {
   const maxRows = args.length >= 5 ? parseInt(args[4], 10) : undefined
   const [_, apiUrl, schemaName, filename] = args
@@ -110,6 +130,6 @@ if (cmd === "inspect" && args.length === 2) {
   console.error(
     `Usage: tsx command.ts <command='import'|'inspect'> 
       import <apiUrl> <schemaName> <filename> (<maxRows>)
-      inspect <schemaName>`
+      inspect <schemaName> (<optional file to extract headers from>)`
   )
 }

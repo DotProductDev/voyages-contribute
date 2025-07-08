@@ -96,7 +96,7 @@ export interface OwnedListColumnMapping extends DataMappingBase {
 
 export interface IgnoredColumnMapping {
   readonly kind: "ignored"
-  header: string
+  headers: string[]
   reason: string
 }
 
@@ -448,7 +448,7 @@ export const MapRow = async (
             const header = resolveBinding(item.header, localContext)
             const value = applyFormula(item.formula, row[header])
             if (value && value.trim() !== "") {
-              agg[item.header] = value.trim()
+              agg[item.targetField] = value.trim()
             }
             return agg
           },
@@ -532,13 +532,19 @@ const internalDebugCheckHeaders = (
       })
     }
   } else if (mapping.kind === "owned") {
-    mapping.importUpdates.forEach((m) => internalDebugCheckHeaders(m, ctx, headers))
+    mapping.importUpdates.forEach((m) =>
+      internalDebugCheckHeaders(m, ctx, headers)
+    )
   } else if (mapping.kind === "ownedList") {
     mapping.addedToList.forEach((item) =>
-      item.importUpdates.forEach((m) => internalDebugCheckHeaders(m, ctx, headers))
+      item.importUpdates.forEach((m) =>
+        internalDebugCheckHeaders(m, ctx, headers)
+      )
     )
   } else if (mapping.kind === "conditional") {
-    mapping.anyNonEmpty.forEach((header) => headers.add(ctx[header] ?? header))
+    // Do not register the conditional variables since they should also be used in
+    // the internal mappings.
+    // mapping.anyNonEmpty.forEach((header) => headers.add(ctx[header] ?? header))
     mapping.mappings.forEach((m) => internalDebugCheckHeaders(m, ctx, headers))
   } else if (mapping.kind === "multiple") {
     mapping.bindings.forEach((binding) => {
@@ -552,7 +558,7 @@ const internalDebugCheckHeaders = (
       headers.add(ctx[item.header] ?? item.header)
     })
   } else if (mapping.kind === "ignored") {
-    headers.add(mapping.header)
+    mapping.headers.forEach(s => headers.add(s))
   } else if (mapping.kind !== "const") {
     throw new Error(`Unknown mapping kind: ${(mapping as any).kind}`)
   }
@@ -562,8 +568,7 @@ const internalDebugCheckHeaders = (
  * A method that enumerates all headers used in the mapping. This is useful
  * to ensure that all columns are actually used.
  **/
-export const DebugCheckHeaders = (mapping: DataMapping)
-: Set<string> => {
+export const debugCheckHeaders = (mapping: DataMapping): Set<string> => {
   const headers = new Set<string>()
   const ctx: Record<string, string> = {}
   internalDebugCheckHeaders(mapping, ctx, headers)

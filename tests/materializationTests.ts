@@ -319,7 +319,7 @@ const voyage1234: MaterializedEntity = {
         id: 1217
       }
     },
-    "Slave Numbers": {
+    "Slave numbers": {
       data: {
         SlavesIntendedFirstPortPurchase: null,
         num_men_embark_first_port_purchase: null,
@@ -1176,7 +1176,7 @@ test("table change", () => {
       },
       changes: [
         {
-          property: "Voyage_Slave Numbers",
+          property: "Voyage_Slave numbers",
           kind: "owned",
           ownedEntity: {
             entityRef: {
@@ -1202,7 +1202,7 @@ test("table change", () => {
     }
   ]
   applyChanges(expandMaterialized(target), changes)
-  const sn = target.data["Slave Numbers"] as MaterializedEntity
+  const sn = target.data["Slave numbers"] as MaterializedEntity
   expect(sn.data["num_men_embark_first_port_purchase"]).toBe(55)
 })
 

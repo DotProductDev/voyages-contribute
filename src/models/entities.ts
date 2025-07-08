@@ -808,14 +808,8 @@ export const VoyageDatesSchema = mkBuilder({
     mode: EntityLinkEditMode.Own
   })
   .addLinkedEntity({
-    label: "Voyage began",
+    label: "Year voyage began",
     backingField: "imp_voyage_began_sparsedate_id",
-    linkedEntitySchema: SparseDateSchema,
-    mode: EntityLinkEditMode.Own
-  })
-  .addLinkedEntity({
-    label: "Departed Africa",
-    backingField: "imp_departed_africa_sparsedate_id",
     linkedEntitySchema: SparseDateSchema,
     mode: EntityLinkEditMode.Own
   })
@@ -824,6 +818,31 @@ export const VoyageDatesSchema = mkBuilder({
     backingField: "imp_arrival_at_port_of_dis_sparsedate_id",
     linkedEntitySchema: SparseDateSchema,
     mode: EntityLinkEditMode.Own
+  })
+  .addLinkedEntity({
+    label: "Year departed Africa",
+    backingField: "imp_departed_africa_sparsedate_id",
+    linkedEntitySchema: SparseDateSchema,
+    mode: EntityLinkEditMode.Own
+  })
+  .build()
+
+export const VoyageGroupingSchema = mkBuilder({
+  name: "VoyageGrouping",
+  backingTable: "voyage_voyagegroupings",
+  contributionMode: "ReadOnly",
+  pkField: "id",
+  getLabel: (data) => coalesce(data.Name)
+})
+  .addText({
+    label: "Name",
+    backingField: "name",
+    description: "Name of the Voyage Grouping"
+  })
+  .addNumber({
+    label: "Code",
+    backingField: "value",
+    description: "Identification code for the Voyage Grouping"
   })
   .build()
 
@@ -1416,7 +1435,7 @@ export const VoyageSourceSchema = mkBuilder({
   .addNumber({
     label: "Short reference id",
     backingField: "short_ref_id",
-    uid: "voyage_source_numeric_short_ref_id",
+    uid: "voyage_source_numeric_short_ref_id"
   })
   .addText({
     label: "Notes",
@@ -1468,6 +1487,13 @@ export const VoyageSchema = mkBuilder({
     notNull: true,
     accessLevel: PropertyAccessLevel.Editor
   })
+  .addLinkedEntity({
+    label: "Voyage grouping",
+    backingField: "voyage_groupings",
+    linkedEntitySchema: VoyageGroupingSchema,
+    mode: EntityLinkEditMode.Select,
+    notNull: false
+  })
   .addEntityOwned({
     oneToOneBackingField: "voyage_id",
     linkedEntitySchema: VoyageShipEntitySchema,
@@ -1508,7 +1534,7 @@ export const VoyageSchema = mkBuilder({
     oneToOneBackingField: "voyage_id",
     linkedEntitySchema: VoyageSlaveNumbersSchema,
     label: "Slave numbers",
-    section: "Slave Numbers",
+    section: "Slave numbers",
     notNull: true
   })
   .addOwnedEntityList({

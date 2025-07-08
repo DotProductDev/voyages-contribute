@@ -5,7 +5,7 @@ export const voyageMapping: DataMapping = {
   kind: "conditional",
   anyNonEmpty: ["voyageid"], // Only process if we have a voyage ID,
   mappings: [
-    // Basic voyage properties (applied once per owner iteration, but will merge)
+    // Basic voyage properties
     {
       kind: "direct",
       targetField: "Voyage ID",
@@ -15,6 +15,12 @@ export const voyageMapping: DataMapping = {
       kind: "direct",
       targetField: "Dataset",
       header: "intraamer"
+    },
+    {
+      kind: "linked",
+      targetField: "Voyage grouping",
+      header: "xmimpflag",
+      lookupField: "Code"
     },
 
     // Voyage Ship data.
@@ -235,6 +241,24 @@ export const voyageMapping: DataMapping = {
           targetField: "Place at which voyage ended",
           header: "portret",
           lookupField: "Code"
+        },
+        {
+          kind: "linked",
+          targetField: "Imputed port where voyage began",
+          header: "ptdepimp",
+          lookupField: "Code"
+        },
+        {
+          kind: "linked",
+          targetField: "Imputed principal place of slave purchase",
+          header: "mjbyptimp",
+          lookupField: "Code"
+        },
+        {
+          kind: "linked",
+          targetField: "Imputed principal port of slave disembarkation",
+          header: "mjslptimp",
+          lookupField: "Code"
         }
       ]
     },
@@ -250,6 +274,65 @@ export const voyageMapping: DataMapping = {
           targetField:
             "Voyage length from last slave embarkation to first disembarkation (days)",
           header: "voyage"
+        },
+        {
+          kind: "direct",
+          targetField: "Voyage length from home port to disembarkation (days)",
+          header: "voy1imp"
+        },
+        {
+          kind: "direct",
+          targetField:
+            "Voyage length from last slave embarkation to first disembarkation (days)",
+          header: "voy2imp"
+        },
+        {
+          kind: "linked",
+          targetField: "Year voyage began",
+          header: "yeardep",
+          lookupField: "",
+          createIfMissing: {
+            kind: "owned",
+            importUpdates: [
+              {
+                kind: "direct",
+                targetField: "Year",
+                header: "yeardep"
+              }
+            ]
+          }
+        },
+        {
+          kind: "linked",
+          targetField: "Year departed Africa",
+          header: "yearaf",
+          lookupField: "",
+          createIfMissing: {
+            kind: "owned",
+            importUpdates: [
+              {
+                kind: "direct",
+                targetField: "Year",
+                header: "yearaf"
+              }
+            ]
+          }
+        },
+        {
+          kind: "linked",
+          targetField: "Year of arrival at port of disembarkation",
+          header: "yearam",
+          lookupField: "",
+          createIfMissing: {
+            kind: "owned",
+            importUpdates: [
+              {
+                kind: "direct",
+                targetField: "Year",
+                header: "yearam"
+              }
+            ]
+          }
         },
         {
           kind: "multiple",
@@ -810,18 +893,96 @@ export const voyageMapping: DataMapping = {
         },
         {
           kind: "direct",
-          targetField: "Percentage adult on voyage",
-          header: "percentage_adult"
-        },
-        {
-          kind: "direct",
-          targetField: "Percentage female on voyage",
-          header: "percentage_female"
-        },
-        {
-          kind: "direct",
           targetField: "Imputed mortality ratio",
           header: "vymrtrat"
+        },
+
+        // Table entries for imputed characteristics
+        {
+          kind: "table",
+          targetField: "Slave characteristics (imputed)",
+          mappings: [
+            {
+              targetField: "imp_num_adult_embarked",
+              header: "adlt1imp"
+            },
+            {
+              targetField: "imp_num_children_embarked",
+              header: "chil1imp"
+            },
+            {
+              targetField: "imp_num_male_embarked",
+              header: "male1imp"
+            },
+            {
+              targetField: "imp_num_female_embarked",
+              header: "feml1imp"
+            },
+            {
+              targetField: "imp_adult_death_middle_passage",
+              header: "adlt2imp"
+            },
+            {
+              targetField: "imp_child_death_middle_passage",
+              header: "chil2imp"
+            },
+            {
+              targetField: "imp_male_death_middle_passage",
+              header: "male2imp"
+            },
+            {
+              targetField: "imp_female_death_middle_passage",
+              header: "feml2imp"
+            },
+            {
+              targetField: "imp_num_adult_landed",
+              header: "adlt3imp"
+            },
+            {
+              targetField: "imp_num_child_landed",
+              header: "chil3imp"
+            },
+            {
+              targetField: "imp_num_male_landed",
+              header: "male3imp"
+            },
+            {
+              targetField: "imp_num_female_landed",
+              header: "feml3imp"
+            },
+            {
+              targetField: "imp_num_men_total",
+              header: "men7"
+            },
+            {
+              targetField: "imp_num_women_total",
+              header: "women7"
+            },
+            {
+              targetField: "imp_num_boy_total",
+              header: "boy7"
+            },
+            {
+              targetField: "imp_num_girl_total",
+              header: "girl7"
+            },
+            {
+              targetField: "imp_num_adult_total",
+              header: "adult7"
+            },
+            {
+              targetField: "imp_num_child_total",
+              header: "child7"
+            },
+            {
+              targetField: "imp_num_males_total",
+              header: "male7"
+            },
+            {
+              targetField: "imp_num_females_total",
+              header: "female7"
+            }
+          ]
         }
       ]
     },
@@ -1067,13 +1228,46 @@ export const voyageMapping: DataMapping = {
 
     {
       kind: "ignored",
-      header: "constreg",
+      headers: [
+        "constreg",
+        "regisreg",
+        "regem1",
+        "regem2",
+        "regarr",
+        "regdis1",
+        "regdis2",
+        "regdis3",
+        "majbyimp",
+        "majbyimp1",
+        "mjselimp",
+        "mjselimp1"
+      ],
       reason: "The region is inferred from the place"
     },
     {
       kind: "ignored",
-      header: "regisreg",
-      reason: "The region is inferred from the place"
+      headers: ["voycount", "ncartot", "slastot"],
+      reason: "This is not a codebook variable (2024-12-17)"
+    },
+    {
+      kind: "ignored",
+      headers: ["year5", "year10", "year25", "year100"],
+      reason: "These are trivially obtained from the year"
+    },
+    {
+      kind: "ignored",
+      headers: [
+        "datedepc",
+        "d1slatrc",
+        "datarr34",
+        "datarr38",
+        "datarr41",
+        "dlslatrc",
+        "ddepamc",
+        "datarr45"
+      ],
+      reason:
+        "This date component is found as part of a sparse date in a different column"
     }
   ]
 }
