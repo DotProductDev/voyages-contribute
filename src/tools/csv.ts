@@ -1,7 +1,7 @@
 // Node.js file reading
 import fs from "fs"
 import Papa, { ParseConfig } from "papaparse"
-import { MapDataSourceToChangeSets } from "./importer"
+import { MapDataSourceToChangeSets, TrackedMappingErrors } from "./importer"
 import { createApiLookup } from "./lookup"
 import { AllMappings } from "./allMappings"
 
@@ -14,6 +14,7 @@ export const parseCSV = (
     header: true,
     skipEmptyLines: true,
     dynamicTyping: false,
+    transformHeader: (header) => header.toLowerCase(),
     ...options
   })
 }
@@ -24,7 +25,7 @@ export const getCSVHeaders = async (filename: string) =>
       step: (results, parser) => {
         const headers = Object.keys(results.data || {})
         parser.abort() // Stop parsing after the first row
-        resolve(headers)
+        resolve(headers.map(s => s.toLowerCase()))
       }
     })
   })
@@ -33,7 +34,7 @@ export const importCSV = (
   apiUrl: string,
   schemaName: string,
   filename: string,
-  errors: Record<string, number[]>,
+  errors: TrackedMappingErrors[],
   maxRows?: number
 ) => {
   const { data } = parseCSV(filename)

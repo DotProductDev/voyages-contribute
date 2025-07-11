@@ -1043,13 +1043,18 @@ export const voyageMapping: DataMapping = {
                   kind: "linked",
                   targetField: "Source",
                   header: "$sourceHeader",
-                  lookupField: "Title"
+                  lookupField: "Short reference.Name",
+                  lookupFormula: (d: string) => {
+                    const idxDot = d.indexOf(",")
+                    return idxDot < 0 ? null : d.slice(0, idxDot)
+                  }
                 },
                 {
                   kind: "direct",
                   targetField: "Page range",
                   header: "$sourceHeader",
                   formula: (d: string) => {
+                    // TODO: Check this with commas in the title (e.g. "Capela, José")
                     const split = d.indexOf(",")
                     return split <= 0 ? null : d.substring(split + 1).trim()
                   }
@@ -1242,12 +1247,13 @@ export const voyageMapping: DataMapping = {
         "mjselimp",
         "mjselimp1"
       ],
-      reason: "The region is inferred from the place"
+      reason:
+        "The region is inferred from the place (which could be e.g., '<Region name>, port unspecified')"
     },
     {
       kind: "ignored",
       headers: ["voycount", "ncartot", "slastot"],
-      reason: "This is not a codebook variable (2024-12-17)"
+      reason: "These are not codebook variables (2024-12-17)"
     },
     {
       kind: "ignored",

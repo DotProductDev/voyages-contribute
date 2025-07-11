@@ -146,12 +146,36 @@ const applyFormula = (
   }
 }
 
+export interface MappingError {
+  kind: string
+  hash: () => string
+}
+
+export interface LookupError extends MappingError {
+  readonly kind: "lookup"
+  schema: string
+  field: string
+  value: string
+}
+
+const mkLookupError = (
+  schema: EntitySchema,
+  property: string | Property,
+  value: string | number | boolean
+): LookupError => ({
+  kind: "lookup" as const,
+  schema: schema.name,
+  field: typeof property === "string" ? property : property.label,
+  value: String(value),
+  hash: () => `${schema.name}_${value}`
+})
+
 export const MapRow = async (
   row: Record<string, string>,
   mapping: DataMapping,
   schema: EntitySchema,
   lookup: EntityLookUp,
-  errors: string[],
+  errors: MappingError[],
   context: Record<string, string> = {}
 ): Promise<PropertyChange[]> => {
   // Helper to resolve binding variables in strings
@@ -211,7 +235,7 @@ export const MapRow = async (
         )
         if (changed === null) {
           errors.push(
-            `Failed to lookup linked entity ${linkedSchema.name} for const mapping: ${mappedValue}`
+            mkLookupError(linkedSchema, linkedSchema.pkField, mappedValue)
           )
           return []
         }
@@ -302,9 +326,7 @@ export const MapRow = async (
           }
         ]
       } else if (entity === null) {
-        errors.push(
-          `Failed to lookup linked entity ${referencedSchema.name} on "${property.label}" for mapping: ${value}.`
-        )
+        errors.push(mkLookupError(referencedSchema, property, value))
       }
       return [
         {
@@ -466,28 +488,40 @@ export const MapRow = async (
   return processMapping(mapping, schema, context)
 }
 
+export interface TrackedMappingErrors {
+  error: MappingError
+  rowNumbers: (number | string)[]
+}
+
 export const MapDataSourceToChangeSets = async (
   rows: Record<string, string>[],
   mapping: DataMapping,
   schema: EntitySchema,
   lookup: EntityLookUp,
-  errors: Record<string, number[]>,
+  errors: TrackedMappingErrors[],
   maxRows?: number
 ): Promise<EntityUpdate[]> => {
   const changes: EntityUpdate[] = []
   const pkProp = schema.properties.find(
     (p) => p.kind !== "table" && p.backingField === schema.pkField
   )
+  const allErrors: Record<string, TrackedMappingErrors> = {}
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     if (maxRows && i >= maxRows) {
       break
     }
     try {
-      const rowErrors: string[] = []
+      const rowErrors: MappingError[] = []
       const propChanges = await MapRow(row, mapping, schema, lookup, rowErrors)
       for (const e of rowErrors) {
-        ;(errors[e] ??= []).push(i)
+        const { rowNumbers } = (allErrors[e.hash()] ??= {
+          error: e,
+          rowNumbers: []
+        })
+        if (rowNumbers.at(-1) !== i + 1) {
+          rowNumbers.push(i + 1)
+        }
       }
       if (propChanges.length > 0) {
         const pkSet = propChanges.find(
@@ -509,6 +543,7 @@ export const MapDataSourceToChangeSets = async (
       )
     }
   }
+  errors.push(...Object.values(allErrors))
   return changes
 }
 
@@ -558,7 +593,7 @@ const internalDebugCheckHeaders = (
       headers.add(ctx[item.header] ?? item.header)
     })
   } else if (mapping.kind === "ignored") {
-    mapping.headers.forEach(s => headers.add(s))
+    mapping.headers.forEach((s) => headers.add(s))
   } else if (mapping.kind !== "const") {
     throw new Error(`Unknown mapping kind: ${(mapping as any).kind}`)
   }

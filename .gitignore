@@ -33,3 +33,4 @@ output/
 .env
 
 uploads/
+errors.json

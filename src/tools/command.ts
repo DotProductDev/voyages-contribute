@@ -2,7 +2,12 @@ import { Contribution, PublicationBatch } from "../models"
 import { AllMappings } from "./allMappings"
 import { getCSVHeaders, importCSV } from "./csv"
 import readline from "node:readline"
-import { debugCheckHeaders } from "./importer"
+import {
+  debugCheckHeaders,
+  LookupError,
+  TrackedMappingErrors
+} from "./importer"
+import fs from "node:fs"
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -36,7 +41,7 @@ if (cmd === "inspect" && args.length >= 2) {
     }
     if (missingFromData.length > 0) {
       console.log(
-        `ERROR: The following (${missingFromData.length}) headers were not found in the CSV:
+        `WARNING: The following (${missingFromData.length}) headers were not found in the CSV:
         ${missingFromData.join(", ")}`
       )
     }
@@ -47,14 +52,36 @@ if (cmd === "inspect" && args.length >= 2) {
 } else if (cmd === "import" && args.length >= 4) {
   const maxRows = args.length >= 5 ? parseInt(args[4], 10) : undefined
   const [_, apiUrl, schemaName, filename] = args
-  const errors: Record<string, number[]> = {}
+  const errors: TrackedMappingErrors[] = []
   const updates = await importCSV(apiUrl, schemaName, filename, errors, maxRows)
-  if (Object.keys(errors).length > 0) {
-    for (const [key, rows] of Object.entries(errors)) {
-      console.error(
-        `Error '${key}' in rows: ${rows.map((r) => r + 1).join(", ")}`
-      )
-    }
+  if (errors.length > 0) {
+    // Dump to file.
+    errors.sort((a, b) => {
+      let cmp = a.error.kind.localeCompare(b.error.kind)
+      if (cmp === 0 && a.error.kind === "lookup") {
+        const la = a.error as LookupError
+        const lb = b.error as LookupError
+        cmp = la.schema.localeCompare(lb.schema)
+        if (cmp === 0) {
+          cmp = la.value.localeCompare(lb.value)
+        }
+      }
+      return cmp
+    })
+    const MAX_ROWS_ARRAY_LENGTH = 6
+    errors.forEach((e) => {
+      if (e.rowNumbers.length > MAX_ROWS_ARRAY_LENGTH) {
+        // Limit to first rows and add a note.
+        const kept = MAX_ROWS_ARRAY_LENGTH - 1
+        const more = e.rowNumbers.length - kept
+        e.rowNumbers.splice(kept)
+        e.rowNumbers.push(`... and ${more} more`)
+      }
+    })
+    fs.writeFileSync("errors.json", JSON.stringify(errors, null, 2))
+    console.error(
+      `Found ${errors.length} errors during import. Saved to errors.json.`
+    )
     const userRes = await asyncReadline(
       "Do you want to continue with the import? (yes/no) "
     )

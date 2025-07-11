@@ -250,7 +250,12 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
   try {
     // Extract user info from JWT
     const user = (req as any).user
-    const author = user?.username || user?.name || user?.email || "Unknown"
+    const author =
+      user?.username ||
+      user?.name ||
+      user?.email ||
+      req.body?.changeSet?.author ||
+      "Unknown"
     // Check if contribution already exists
     const existing = await dbService.getContribution(req.body.id)
     // If existing it must match the user.
