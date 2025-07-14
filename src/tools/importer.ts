@@ -56,7 +56,7 @@ export interface LinkedColumnMapping extends DataMappingBase {
   readonly kind: "linked"
   header: string
   lookupField: string
-  lookupFormula?: ColumnFormula
+  lookupFormula?: (value: string) => string | null | string[]
   createIfMissing?: CreateIfMissing
 }
 
@@ -127,14 +127,14 @@ export interface EntityLookUp {
   lookup: (
     schema: EntitySchema,
     field: string,
-    value: string
+    value: string | string[]
   ) => Promise<MaterializedEntity | null>
 }
 
-const applyFormula = (
-  formula: ((x: string) => string | null) | undefined,
-  value: string | null | undefined
-): string | null => {
+const applyFormula = <TOut = string>(
+  formula: ((x: string) => TOut | null) | undefined,
+  value: string | undefined
+): TOut | string | null => {
   if (formula === undefined || !value) {
     return value ?? null
   }
@@ -161,12 +161,12 @@ export interface LookupError extends MappingError {
 const mkLookupError = (
   schema: EntitySchema,
   property: string | Property,
-  value: string | number | boolean
+  value: string | string[] | number | boolean
 ): LookupError => ({
   kind: "lookup" as const,
   schema: schema.name,
   field: typeof property === "string" ? property : property.label,
-  value: String(value),
+  value: Array.isArray(value) ? value.join(";") : String(value),
   hash: () => `${schema.name}_${value}`
 })
 
@@ -277,12 +277,12 @@ export const MapRow = async (
         throw new Error("Invalid linked mapping target field")
       }
       const header = resolveBinding(mapping.header, localContext)
-      let value: string | null | undefined = row[header]
+      let value: string | string[] | null | undefined = row[header]
       if (mapping.lookupFormula && value) {
         // Apply the lookup formula to the value
         value = applyFormula(mapping.lookupFormula, value)
       }
-      if (!value || value.trim() === "") {
+      if (!value || (typeof value === "string" && value.trim() === "")) {
         return []
       }
       const referencedSchema = getSchema(property.linkedEntitySchema)
@@ -290,7 +290,7 @@ export const MapRow = async (
         ? await lookup.lookup(
             referencedSchema,
             mapping.lookupField,
-            value.trim()
+            typeof value === "string" ? value.trim() : value
           )
         : null
       // If createIfMissing is specified and lookup fails, create new entity

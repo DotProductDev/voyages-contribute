@@ -45,7 +45,7 @@ export const createApiLookup = (url: string): EntityLookUp => {
   const lookup: EntityLookUp["lookup"] = async (
     schema: EntitySchema,
     field: string,
-    value: string
+    value: string | string[]
   ) => {
     const idxDot = field.indexOf(".")
     if (idxDot !== -1) {
@@ -82,7 +82,15 @@ export const createApiLookup = (url: string): EntityLookUp => {
     }
     // We already have a cache of the entity_field pair.
     const items = await data
-    return items[value] || null
+    if (typeof value === "string") {
+      return items[value] || null
+    }
+    for (const v of value) {
+      if (items[v]) {
+        return items[v]
+      }
+    }
+    return null
   }
   return {
     lookup

@@ -1045,8 +1045,16 @@ export const voyageMapping: DataMapping = {
                   header: "$sourceHeader",
                   lookupField: "Short reference.Name",
                   lookupFormula: (d: string) => {
-                    const idxDot = d.indexOf(",")
-                    return idxDot < 0 ? null : d.slice(0, idxDot)
+                    const values: string[] = []
+                    while (true) {
+                      const idxSep = d.lastIndexOf(",")
+                      if (idxSep < 0) {
+                        break
+                      }
+                      d = d.slice(0, idxSep).trim()
+                      values.push(d)
+                    }
+                    return values.length > 0 ? values : null
                   }
                 },
                 {
