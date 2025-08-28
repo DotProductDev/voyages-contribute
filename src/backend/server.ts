@@ -9,7 +9,12 @@ import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import cors from "cors"
 import morgan from "morgan"
-import { ContributionMedia, ContributionStatus } from "../models/contribution"
+import {
+  combineContributionChanges,
+  Contribution,
+  ContributionMedia,
+  ContributionStatus
+} from "../models/contribution"
 import { ApiBatchResolver, DebouncedResolver } from "./dataResolvers"
 import { DataResolver } from "../models/query"
 import { getSchema } from "../models/entities"
@@ -18,6 +23,7 @@ import { fetchEntities } from "./entityFetch"
 import multer from "multer"
 import path from "path"
 import fs from "fs/promises"
+import { foldCombinedChanges } from "../models"
 
 // Load environment variables
 dotenv.config()
@@ -612,6 +618,62 @@ app.get("/batches/:filter", authenticateJWT, async (req, res) => {
     )
     res.status(500).json({
       error: "Failed to retrieve batches",
+      details: (error as Error).message
+    })
+  }
+})
+
+// Publish contributions or batches
+app.post("/publish", authenticateJWT, async (req, res) => {
+  try {
+    const { id, mode } = req.body
+    // Validate required fields
+    if (!id || (mode !== "batch" && mode !== "contribution")) {
+      res.status(400).json({
+        error: "Missing required fields",
+        details: "id and mode are required"
+      })
+      return
+    }
+    let contributions: Contribution[]
+    if (mode === "batch") {
+      const batchContributions = await dbService.getBatchContributions(
+        id,
+        ContributionStatus.Accepted
+      )
+      if (!batchContributions) {
+        res.status(404).json({
+          error: "Batch not found or no Accepted contributions are in the batch"
+        })
+        return
+      }
+      contributions = batchContributions
+    } else {
+      const contribution = await dbService.getContribution(id)
+      if (!contribution) {
+        res.status(404).json({
+          error: "Contribution not found"
+        })
+        return
+      }
+      if (contribution.status !== ContributionStatus.Accepted) {
+        res.status(404).json({
+          error: "Contribution status must be Accepted"
+        })
+        return
+      }
+      contributions = [contribution]
+    }
+    // For each contribution we flatten the changeSet + reviews.
+    const allChanges = foldCombinedChanges(contributions.map(combineContributionChanges))
+    // TODO: submit allChanges to the VoyagesAPI that will apply the
+    // modifications to the database in a transaction. Since this can be slow, we
+    // get a job ID (url) from the API and the UI should poll its status
+    console.dir(allChanges)
+  } catch (error) {
+    console.error("Error publishing batch:", error)
+    res.status(500).json({
+      error: "Failed to publish batch",
       details: (error as Error).message
     })
   }

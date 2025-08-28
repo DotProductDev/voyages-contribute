@@ -198,13 +198,23 @@ export class DatabaseService {
     return this.contributionRepo.save(contribution)
   }
 
+  async getBatchContributions(
+    batchId: number,
+    status?: ContributionStatus
+  ): Promise<ContributionEntity[] | null> {
+    return this.contributionRepo.find({
+      where: { batch: { id: batchId }, status },
+      relations: ["changeSet", "reviews", "media"]
+    })
+  }
+
   async getContribution(id: string): Promise<ContributionEntity | null> {
     return getFullContribution(AppDataSource.manager, id)
   }
 
   async getBatchByTitle(title: string): Promise<PublicationBatchEntity | null> {
     return this.batchRepository.findOne({
-      where: { title },
+      where: { title }
     })
   }
 
@@ -271,7 +281,7 @@ export class DatabaseService {
       order,
       skip: offset,
       take: limit,
-      relations: ["changeSet", "media", "batch"]
+      relations: ["changeSet", "media", "reviews", "batch"]
     })
 
     return {

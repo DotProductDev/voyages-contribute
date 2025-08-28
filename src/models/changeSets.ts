@@ -436,6 +436,7 @@ const cloneEntityChange = <TChange extends EntityChange>(
 
 type ExtPropertyChange = PropertyChange & {
   combined?: boolean
+  isForeignKey?: boolean
 }
 
 /**
@@ -532,7 +533,8 @@ export const combineChanges = (
               property: prop.backingField,
               changed: uc.changed?.entityRef.id ?? null,
               comments: uc.comments,
-              combined: true
+              combined: true,
+              isForeignKey: true
             } as ExtPropertyChange
           ],
           entityRef: u.entityRef,
@@ -800,4 +802,20 @@ export const dropOrphans = (changes: EntityChange[]) => {
   // mutually cancelling changes).
   removeNoOps(changes)
   return orphanRefs
+}
+
+export const foldCombinedChanges = (
+  changes: CombinedChangeSet[]
+): CombinedChangeSet => {
+  
+    // For each contribution we flatten the changeSet + reviews.
+    const allChanges: CombinedChangeSet = {
+      deletions: [],
+      updates: []
+    }
+    for (const c of changes) {
+      allChanges.deletions.push(...c.deletions)
+      allChanges.updates.push(...c.updates)
+    }
+    return allChanges
 }
