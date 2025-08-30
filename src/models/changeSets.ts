@@ -26,10 +26,11 @@ export interface PropertyChangeBase {
 
 export type PropertyValue = BaseFieldValue | EntityRef | null
 
-export interface DirectPropertyChange extends PropertyChangeBase {
+export interface DirectPropertyChange<TValue = PropertyValue>
+  extends PropertyChangeBase {
   readonly kind: "direct"
-  original?: PropertyValue
-  changed: PropertyValue
+  original?: TValue
+  changed: TValue
 }
 
 export const isDirectChange = (
@@ -185,9 +186,19 @@ const validateAndGetProperty = <T extends PropertyChange>(
   return prop
 }
 
+export interface ForeignKeyIndicator {
+  isForeignKey?: boolean
+}
+
+type CombinedChangeSetPropertyChange = Omit<
+  DirectPropertyChange<BaseFieldValue | null>,
+  "original" | "comments"
+> &
+  ForeignKeyIndicator
+
 export interface CombinedChangeSet {
   deletions: EntityDelete[]
-  updates: EntityUpdate<DirectPropertyChange>[]
+  updates: EntityUpdate<CombinedChangeSetPropertyChange>[]
 }
 
 const processRemoved = (
@@ -434,10 +445,10 @@ const cloneEntityChange = <TChange extends EntityChange>(
   } as TChange
 }
 
-type ExtPropertyChange = PropertyChange & {
-  combined?: boolean
-  isForeignKey?: boolean
-}
+type ExtPropertyChange = PropertyChange &
+  ForeignKeyIndicator & {
+    combined?: boolean
+  }
 
 /**
  * Combine an ordered sequence of changes into a flat list of deletes and
@@ -653,9 +664,27 @@ export const combineChanges = (
     }
     mergedUpdates[id] = { ...u, changes }
   }
+  // Keep a cleaned, minimal object to encode the direct updates.
+  const cleanedUpdates: CombinedChangeSet["updates"] = Object.values(
+    mergedUpdates
+  ).map((u) => ({
+    type: "update" as const,
+    entityRef: u.entityRef,
+    changes: u.changes.map((c) => {
+      const clean: CombinedChangeSetPropertyChange = {
+        kind: "direct" as const,
+        property: c.property,
+        changed: isEntityRef(c.changed) ? c.changed.id : c.changed
+      }
+      if ((c as ForeignKeyIndicator).isForeignKey) {
+        clean.isForeignKey = true
+      }
+      return clean
+    })
+  }))
   return {
     deletions: deletedEntries,
-    updates: Object.values(mergedUpdates)
+    updates: cleanedUpdates
   }
 }
 
@@ -804,18 +833,97 @@ export const dropOrphans = (changes: EntityChange[]) => {
   return orphanRefs
 }
 
+interface CompatibilityResult {
+  merged: CombinedChangeSetPropertyChange[]
+  incompatible: CombinedChangeSetPropertyChange[]
+}
+
+const getCompatibility = (
+  a: CombinedChangeSetPropertyChange[],
+  b: CombinedChangeSetPropertyChange[]
+): CompatibilityResult => {
+  // The order in which the changes appear is not important.
+  const incompatible: CombinedChangeSetPropertyChange[] = []
+  // First we detect incompatible changes, namely, a property change in both a
+  // and b that have different changed values.
+  for (const change of a) {
+    const match = b.find((bc) => bc.property === change.property)
+    if (match && match.changed !== change.changed) {
+      incompatible.push(change)
+    }
+  }
+  // Now we find if b has any changes that do not appear in a.
+  const extra: CombinedChangeSetPropertyChange[] = []
+  for (const change of b) {
+    const match = a.find((bc) => bc.property === change.property)
+    if (!match) {
+      extra.push(change)
+    }
+  }
+  return extra.length === 0 && incompatible.length === 0
+    ? { merged: a, incompatible: [] }
+    : { merged: [...extra, ...a], incompatible }
+}
+
+export interface UpdateConflict {
+  entityRef: EntityRef
+  incompatible: CombinedChangeSetPropertyChange[]
+}
+
+export type FoldCombinedChangesResult = CombinedChangeSet & {
+  conflicts: UpdateConflict[]
+}
+
 export const foldCombinedChanges = (
   changes: CombinedChangeSet[]
-): CombinedChangeSet => {
-  
-    // For each contribution we flatten the changeSet + reviews.
-    const allChanges: CombinedChangeSet = {
-      deletions: [],
-      updates: []
+): FoldCombinedChangesResult => {
+  const allChanges: CombinedChangeSet = {
+    deletions: [],
+    updates: []
+  }
+  for (const c of changes) {
+    allChanges.deletions.push(...c.deletions)
+    allChanges.updates.push(...c.updates)
+  }
+  // Make sure that no item is deleted more than once.
+  const delKeys: Set<string> = new Set()
+  const finalDels: CombinedChangeSet["deletions"] = []
+  const refKey = (er: EntityRef) => `${er.type}:${er.schema}:${er.id}`
+  for (const d of allChanges.deletions) {
+    const key = refKey(d.entityRef)
+    if (!delKeys.has(key)) {
+      delKeys.add(key)
+      finalDels.push(d)
     }
-    for (const c of changes) {
-      allChanges.deletions.push(...c.deletions)
-      allChanges.updates.push(...c.updates)
+  }
+  // Now we process all updates to ensure that if the same entity is updated
+  // multiple times, the updates are _identical_, in which case we can drop the
+  // dupes.
+  const finalUpdates: Map<
+    string,
+    EntityUpdate<CombinedChangeSetPropertyChange>
+  > = new Map()
+  const incompatibilities: Map<string, UpdateConflict> = new Map()
+  for (const u of allChanges.updates) {
+    const key = refKey(u.entityRef)
+    if (finalUpdates.has(key)) {
+      // Check for consistency.
+      const existing = finalUpdates.get(key)!
+      const { merged, incompatible } = getCompatibility(
+        existing.changes,
+        u.changes
+      )
+      finalUpdates.set(key, { ...u, changes: merged })
+      if (incompatible.length > 0) {
+        incompatibilities.set(key, { entityRef: u.entityRef, incompatible })
+      }
+    } else {
+      finalUpdates.set(key, u)
     }
-    return allChanges
+  }
+  return {
+    deletions: finalDels,
+    updates: Array.from(finalUpdates.values()),
+    conflicts: Array.from(incompatibilities.values())
+  }
 }
