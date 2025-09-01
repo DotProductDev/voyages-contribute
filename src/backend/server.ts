@@ -33,8 +33,9 @@ const app = express()
 const PORT = process.env.PORT || 7127
 const JWT_SECRET = process.env.JWT_SECRET || "dummy-secret"
 
-const VOYAGES_API_DATA_URL =
-  process.env.VOYAGES_API_DATA_URL || "http://127.0.0.1:8000/contrib/data"
+const VOYAGES_SERVER_URL =
+  process.env.VOYAGES_SERVER_URL || "http://127.0.0.1:8000"
+const VOYAGES_API_DATA_URL = `${VOYAGES_SERVER_URL}/contrib/data`
 const VOYAGES_API_AUTH_TOKEN = process.env.VOYAGES_API_AUTH_TOKEN || ""
 
 // Configure multer for file uploads
@@ -664,12 +665,55 @@ app.post("/publish", authenticateJWT, async (req, res) => {
       }
       contributions = [contribution]
     }
+    if (contributions.length === 0) {
+      res.status(400).json("No accepted contributions found in batch")
+      return
+    }
     // For each contribution we flatten the changeSet + reviews.
-    const allChanges = foldCombinedChanges(contributions.map(combineContributionChanges))
-    // TODO: submit allChanges to the VoyagesAPI that will apply the
-    // modifications to the database in a transaction. Since this can be slow, we
-    // get a job ID (url) from the API and the UI should poll its status
-    console.dir(allChanges)
+    const changeset = foldCombinedChanges(
+      contributions.map((c) => ({
+        ...combineContributionChanges(c),
+        // Use a short label since this will appear a lot in the final JSON
+        label: String(c.id)
+      }))
+    )
+    const { conflicts, validation } = changeset
+    if (
+      conflicts.length > 0 ||
+      validation.filter((v) => v.kind === "error").length > 0
+    ) {
+      // Cannot go through with updates as there are conflicts.
+      res.status(400).json({
+        conflicts,
+        validation,
+        error: `The publication has ${conflicts.length} conflicts and ${validation.filter((v) => v.kind === "error").length} validation errors.`
+      })
+      return
+    }
+    // Log to debug POST.
+    // await fs.writeFile(
+    //   "output/debug.json",
+    //   JSON.stringify(changeset, null, 2)
+    // )
+    // Call the API with an idempotency key that is determined by the
+    // publication request. This would prevent multiple requests being made (e.g.
+    // by an eager user clicking a button multiple times).
+    const pubRes = await fetch(`${VOYAGES_SERVER_URL}/contrib/publish_batch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        key: `${id}_${mode}`,
+        changeset
+      })
+    })
+    // TODO: once the publication is done, we need to change the status from
+    // Accepted => Published. This could also involve some basic check of direct
+    // property values as a basic validation of the publication process.
+
+    // forward the response.
+    res.status(pubRes.status).json({ ...(await pubRes.json()), validation })
   } catch (error) {
     console.error("Error publishing batch:", error)
     res.status(500).json({

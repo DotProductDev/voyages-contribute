@@ -452,3 +452,16 @@ GET {{baseUrl}}/contributions?page=9999&limit=10
 
 ### Edge case - zero limit (should use default)
 GET {{baseUrl}}/contributions?page=1&limit=0
+
+###
+
+### Publish a batch
+POST {{baseUrl}}/publish
+Content-Type: application/json
+
+{
+  "mode": "batch",
+  "id": 1
+}
+
+###

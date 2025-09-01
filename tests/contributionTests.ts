@@ -2,12 +2,18 @@ import { expect, test } from "vitest"
 import * as fs from "fs"
 import { combineContributionChanges } from "../src/models/contribution"
 import { sampleContributions } from "./sampleContributions"
-import { foldCombinedChanges } from "../src/models/changeSets"
+import {
+  CombinedChangeSet,
+  foldCombinedChanges
+} from "../src/models/changeSets"
 
 test("combine contributions", () => {
   const contributions = sampleContributions
   const { deletions, updates, conflicts } = foldCombinedChanges(
-    contributions.map(combineContributionChanges)
+    contributions.map(
+      (c) =>
+        ({ ...combineContributionChanges(c), label: c.id }) as CombinedChangeSet
+    )
   )
   expect(deletions.length).toBe(0)
   expect(conflicts.length).toBe(0)

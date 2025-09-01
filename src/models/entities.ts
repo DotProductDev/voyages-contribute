@@ -1560,7 +1560,7 @@ export const VoyageSchema = mkBuilder({
   })
   .build()
 
-const SchemaIndex = AllSchemas.reduce(
+export const SchemaIndex = AllSchemas.reduce(
   (agg, s) => ({ ...agg, [s.name]: s }),
   {} as Record<string, EntitySchema>
 )

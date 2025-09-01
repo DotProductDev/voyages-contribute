@@ -1,4 +1,4 @@
-import { AllProperties, getSchema } from "./entities"
+import { AllProperties, getSchema, SchemaIndex } from "./entities"
 import {
   BaseFieldValue,
   cloneEntity,
@@ -196,9 +196,15 @@ type CombinedChangeSetPropertyChange = Omit<
 > &
   ForeignKeyIndicator
 
+interface TaggedEntityChange {
+  tag?: string
+}
+
 export interface CombinedChangeSet {
-  deletions: EntityDelete[]
-  updates: EntityUpdate<CombinedChangeSetPropertyChange>[]
+  label?: string
+  deletions: (EntityDelete & TaggedEntityChange)[]
+  updates: (EntityUpdate<CombinedChangeSetPropertyChange> &
+    TaggedEntityChange)[]
 }
 
 const processRemoved = (
@@ -495,6 +501,7 @@ export const combineChanges = (
           kind: "direct",
           property: prop.oneToOneBackingField,
           changed: u.entityRef.id,
+          isForeignKey: true,
           comments: uc.comments,
           combined: true
         })
@@ -517,13 +524,14 @@ export const combineChanges = (
         }
         for (const m of uc.modified) {
           // Automatically add a change to the primary key of owned items.
-          const ownedChanges = m.changes.filter(
+          const ownedChanges: ExtPropertyChange[] = m.changes.filter(
             (c) => c.property !== childProp.label
           )
           ownedChanges.push({
             kind: "direct" as const,
             property: childProp.uid,
-            changed: u.entityRef.id
+            changed: u.entityRef.id,
+            isForeignKey: true
           })
           updatedEntries.push({
             type: "update" as const,
@@ -551,10 +559,14 @@ export const combineChanges = (
           entityRef: u.entityRef,
           order
         })
-        if (uc.linkedChanges && uc.changed) {
+        // Generate an update/insert for the changed object.
+        if (
+          uc.changed &&
+          (uc.linkedChanges || uc.changed.entityRef.type === "new")
+        ) {
           updatedEntries.push({
             type: "update" as const,
-            changes: uc.linkedChanges,
+            changes: uc.linkedChanges ?? [],
             entityRef: uc.changed.entityRef,
             order
           })
@@ -601,8 +613,9 @@ export const combineChanges = (
   // simplification, or perhaps the UI allowed them just to allow for a
   // comment).
   for (let i = updatedEntries.length - 1; i >= 0; --i) {
-    const { changes } = updatedEntries[i]
-    if (changes.length === 0) {
+    const { changes, entityRef } = updatedEntries[i]
+    if (changes.length === 0 && entityRef.type !== "new") {
+      // Allow empty changes on new entries, otherwise we might break FKs.
       updatedEntries.splice(i, 1)
     } else if (changes.findIndex((c) => c.kind !== "direct") >= 0) {
       // At this point, only direct changes should appear in updated
@@ -870,8 +883,16 @@ export interface UpdateConflict {
   incompatible: CombinedChangeSetPropertyChange[]
 }
 
+export interface ValidationResult {
+  kind: "error" | "warning"
+  entityRef: EntityRef
+  message: string
+  tag?: string
+}
+
 export type FoldCombinedChangesResult = CombinedChangeSet & {
   conflicts: UpdateConflict[]
+  validation: ValidationResult[]
 }
 
 export const foldCombinedChanges = (
@@ -882,8 +903,10 @@ export const foldCombinedChanges = (
     updates: []
   }
   for (const c of changes) {
-    allChanges.deletions.push(...c.deletions)
-    allChanges.updates.push(...c.updates)
+    allChanges.deletions.push(
+      ...c.deletions.map((d) => ({ ...d, tag: c.label }))
+    )
+    allChanges.updates.push(...c.updates.map((u) => ({ ...u, tag: c.label })))
   }
   // Make sure that no item is deleted more than once.
   const delKeys: Set<string> = new Set()
@@ -901,7 +924,7 @@ export const foldCombinedChanges = (
   // dupes.
   const finalUpdates: Map<
     string,
-    EntityUpdate<CombinedChangeSetPropertyChange>
+    EntityUpdate<CombinedChangeSetPropertyChange> & TaggedEntityChange
   > = new Map()
   const incompatibilities: Map<string, UpdateConflict> = new Map()
   for (const u of allChanges.updates) {
@@ -921,9 +944,41 @@ export const foldCombinedChanges = (
       finalUpdates.set(key, u)
     }
   }
+  // Validate changes: ensure non-nullables are set.
+  const validation: ValidationResult[] = []
+  for (const u of finalUpdates.values()) {
+    const schema = SchemaIndex[u.entityRef.schema]
+    if (!schema) {
+      continue
+    }
+    schema.properties.forEach((p) => {
+      if (
+        p.kind === "table" ||
+        p.kind === "ownedEntityList" ||
+        p.kind === "entityOwned"
+      ) {
+        return
+      }
+      const mandatory: boolean = !!(p as any).notNull
+      if (
+        mandatory &&
+        !u.changes.some(
+          (c) => c.property === p.backingField && c.changed !== null
+        )
+      ) {
+        validation.push({
+          kind: "error",
+          entityRef: u.entityRef,
+          message: `Property '${p.label}' is required but not set.`,
+          tag: u.tag
+        })
+      }
+    })
+  }
   return {
     deletions: finalDels,
     updates: Array.from(finalUpdates.values()),
-    conflicts: Array.from(incompatibilities.values())
+    conflicts: Array.from(incompatibilities.values()),
+    validation
   }
 }
