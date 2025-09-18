@@ -573,9 +573,9 @@ app.patch("/assign_to_batch", authenticateJWT, async (req, res) => {
       contribution_id,
       batch_id
     )
-    if (!updatedContribution) {
-      res.status(404).json({
-        error: "Contribution not found"
+    if ("error" in updatedContribution) {
+      res.status(400).json({
+        error: updatedContribution.error
       })
       return
     }

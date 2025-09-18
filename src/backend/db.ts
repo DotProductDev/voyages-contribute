@@ -144,7 +144,7 @@ export class ContributionEntity implements Contribution {
 
 // Database connection (SQLite)
 
-const DATABASE = process.env.CONTRIB_DB_PATH || "/etc/data/contributions.sqlite"
+const DATABASE = process.env.CONTRIB_DB_PATH || "./contrib.db"
 const IS_DEVELOPMENT = process.env.NODE_ENV === "development"
 
 if (IS_DEVELOPMENT) {
@@ -414,14 +414,14 @@ export class DatabaseService {
   async assignContributionToBatch(
     contributionId: string,
     batchId: number | null
-  ): Promise<ContributionEntity | null> {
+  ): Promise<ContributionEntity | { error: string }> {
     return await AppDataSource.transaction(async (manager) => {
       // Check if contribution exists
       const contribution = await manager.findOne(ContributionEntity, {
         where: { id: contributionId }
       })
       if (!contribution) {
-        return null
+        return { error: "Contribution not found" }
       }
       let batch = null
       // If batchId is provided, verify the batch exists
@@ -431,7 +431,7 @@ export class DatabaseService {
         })
 
         if (!batch) {
-          throw new Error(`Publication batch with ID ${batchId} not found`)
+          return { error: `Publication batch with ID ${batchId} not found` }
         }
       }
       // Update the contribution's batch assignment
@@ -440,6 +440,7 @@ export class DatabaseService {
 
       // Return the updated contribution with all relations
       return await getFullContribution(manager, contributionId)
+        ?? { error: "Could not fetch full contribution" }
     })
   }
 

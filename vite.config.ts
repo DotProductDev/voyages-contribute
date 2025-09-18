@@ -57,6 +57,60 @@ export default defineConfig(({ mode }) => {
       }
     }
   }
+  if (mode === "tools") {
+    // Contribute tools.
+    return {
+      build: {
+        // Output directory for the build
+        outDir: "dist",
+
+        // Generate sourcemaps for better debugging
+        sourcemap: true,
+
+        // Ensure we're not using browser-specific APIs
+        ssr: true,
+
+        // Ensure Node.js compatible code
+        target: "node18",
+
+        // Don't minify tools code for better debugging
+        minify: false,
+
+        // Roll-up specific options
+        rollupOptions: {
+          // External packages that shouldn't be bundled
+          external: [
+            "express"
+            // Add other packages that should be treated as external
+            // For example:
+            // 'mongoose',
+            // 'cors',
+            // etc.
+          ],
+
+          // Configure the entry point
+          input: resolve(__dirname, "src/tools/command.ts"),
+
+          output: {
+            // Output as a single file
+            format: "es",
+            entryFileNames: "tools.js",
+            chunkFileNames: "[name].js",
+
+            // Preserve the module structure
+            preserveModules: false
+          }
+        }
+      },
+
+      // Resolve specific aliases if needed
+      resolve: {
+        alias: {
+          "@": resolve(__dirname, "./src")
+        }
+      }
+    }
+  }
   if (mode === "frontend") {
     // In this mode we are producing a library to be consumed by the front-end
     // for sharing our models, Entity definitions, and helper functions.
