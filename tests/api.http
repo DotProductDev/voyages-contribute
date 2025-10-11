@@ -324,6 +324,105 @@ Content-Type: application/json
 
 ###
 
+### Prepare sample contributions for multi-assignment (create if not already present)
+### These three contributions enable testing the success path of assigning
+### multiple IDs in one request. If they already exist, server will replace
+### the WorkInProgress version (status 0) with the provided changeSet.
+POST {{baseUrl}}/contributions
+Content-Type: application/json
+
+{
+  "id": "contrib-multi-1",
+  "root": {
+    "entityType": "Article",
+    "entityId": "article-multi-1"
+  },
+  "changeSet": {
+    "title": "Multi Assign Sample 1",
+    "comments": "Created for multi-batch assignment test",
+    "changes": [
+      { "operation": "add", "path": "/field1", "newValue": "value1" }
+    ]
+  },
+  "status": 0
+}
+
+###
+POST {{baseUrl}}/contributions
+Content-Type: application/json
+
+{
+  "id": "contrib-multi-2",
+  "root": {
+    "entityType": "Article",
+    "entityId": "article-multi-2"
+  },
+  "changeSet": {
+    "title": "Multi Assign Sample 2",
+    "comments": "Created for multi-batch assignment test",
+    "changes": [
+      { "operation": "add", "path": "/field2", "newValue": "value2" }
+    ]
+  },
+  "status": 0
+}
+
+###
+POST {{baseUrl}}/contributions
+Content-Type: application/json
+
+{
+  "id": "contrib-multi-3",
+  "root": {
+    "entityType": "Article",
+    "entityId": "article-multi-3"
+  },
+  "changeSet": {
+    "title": "Multi Assign Sample 3",
+    "comments": "Created for multi-batch assignment test",
+    "changes": [
+      { "operation": "add", "path": "/field3", "newValue": "value3" }
+    ]
+  },
+  "status": 0
+}
+
+###
+
+### Assign multiple contributions to batch (array form)
+@multiContributionA = contrib-multi-1
+@multiContributionB = contrib-multi-2
+@multiContributionC = contrib-multi-3
+
+PATCH {{baseUrl}}/assign_to_batch
+Content-Type: application/json
+
+{
+  "contribution_id": [
+    "{{multiContributionA}}",
+    "{{multiContributionB}}",
+    "{{multiContributionC}}"
+  ],
+  "batch_id": {{batchId}}
+}
+
+###
+
+### Clear multiple contributions from batch (set to null)
+PATCH {{baseUrl}}/assign_to_batch
+Content-Type: application/json
+
+{
+  "contribution_id": [
+    "{{multiContributionA}}",
+    "{{multiContributionB}}",
+    "{{multiContributionC}}"
+  ],
+  "batch_id": null
+}
+
+###
+
 ### Advanced queries - Get contributions associated to batch
 
 GET {{baseUrl}}/contributions?batch_id=1
@@ -394,6 +493,21 @@ Content-Type: application/json
 
 ###
 
+### Error case - one of multiple contributions does not exist
+PATCH {{baseUrl}}/assign_to_batch
+Content-Type: application/json
+
+{
+  "contribution_id": [
+    "{{multiContributionA}}",
+    "non-existent-id",
+    "{{multiContributionC}}"
+  ],
+  "batch_id": {{batchId}}
+}
+
+###
+
 ### Error case - missing contribution_id
 PATCH {{baseUrl}}/assign_to_batch
 Content-Type: application/json
@@ -416,6 +530,16 @@ GET {{baseUrl}}/batches/published
 
 ### Get pending batches only
 GET {{baseUrl}}/batches/pending
+
+###
+
+### Delete batch (will only succeed if it has no contributions)
+DELETE {{baseUrl}}/batches/{{batchId}}
+
+###
+
+### Error case - delete batch that still has contributions (recreate / reassign first if needed)
+DELETE {{baseUrl}}/batches/1
 
 ###
 

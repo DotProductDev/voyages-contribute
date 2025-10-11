@@ -4,7 +4,7 @@ import express, {
   NextFunction,
   ErrorRequestHandler
 } from "express"
-import { initDatabase, DatabaseService } from "./db"
+import { initDatabase, DatabaseService, ContributionEntity } from "./db"
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
 import cors from "cors"
@@ -149,7 +149,7 @@ const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const user = jwt.verify(token, JWT_SECRET)
-    ;(req as any).user = user
+      ; (req as any).user = user
     next() // Call next() to proceed to the next middleware or route handler
   } catch {
     res.status(403).json({ error: "Invalid or expired token" })
@@ -162,12 +162,18 @@ app.get("/", (_, res) => {
   res.json({ message: "Contributions API running" })
 })
 
+const getPaginationArgs = (req: any) => {
+  const page = req.query.page ? parseInt(req.query.page as string) : 1
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+  const sortBy = (req.query.sortBy as "author" | "timestamp" | "id") || "id"
+  const sortOrder = (req.query.sortOrder as "ASC" | "DESC") || "ASC"
+  return { page, limit, sortBy, sortOrder }
+}
+
 // Get all contributions with filtering, sorting and pagination
 app.get("/contributions", authenticateJWT, async (req, res) => {
   try {
     // Parse query parameters
-    const page = req.query.page ? parseInt(req.query.page as string) : 1
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
     const batchId =
       req.query.batch_id !== undefined
         ? typeof req.query.batch_id === "string" &&
@@ -175,8 +181,6 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
           ? parseInt(req.query.batch_id)
           : null
         : undefined
-    const sortBy = (req.query.sortBy as "author" | "timestamp" | "id") || "id"
-    const sortOrder = (req.query.sortOrder as "ASC" | "DESC") || "ASC"
 
     // Parse status filter (can be single value or array)
     let status: ContributionStatus | ContributionStatus[] | undefined =
@@ -193,14 +197,10 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
       }
     }
 
-    console.log(batchId)
     const result = await dbService.listContributions({
-      page,
-      limit,
+      ...getPaginationArgs(req),
       status,
-      batchId,
-      sortBy,
-      sortOrder
+      batchId
     })
 
     // Add pagination links to the response
@@ -252,17 +252,83 @@ app.get("/contributions/:id", authenticateJWT, async (req, res) => {
   }
 })
 
+const getAuthorFromRequest = (req: Request): string | null => {
+  const user = (req as any).user
+  // TODO: if no user is authenticated, return null!
+  const author =
+    user?.username ||
+    user?.name ||
+    user?.email ||
+    req.body?.changeSet?.author ||
+    "Unknown"
+  return author
+}
+
+app.get("/contributions/wip", authenticateJWT, async (req, res) => {
+  try {
+    const author = getAuthorFromRequest(req)
+    if (!author) {
+      res
+        .status(400)
+        .json({ error: "Cannot determine author from token or request" })
+      return
+    }
+    const contributions = await dbService.listContributions({
+      ...getPaginationArgs(req),
+      author,
+      status: ContributionStatus.WorkInProgress
+    })
+    res.json(contributions)
+  } catch (error) {
+    console.error(`Error fetching WIP contributions for user ${req.params.user}:`, error)
+    res.status(500).json({ error: "Failed to fetch WIP contributions" })
+  }
+})
+
+app.delete("/contributions/wip/:id", authenticateJWT, async (req, res) => {
+  try {
+    const author = getAuthorFromRequest(req)
+    if (!author) {
+      res.status(400).json({ error: "Cannot determine author from token or request" })
+        .status(400)
+        .json({ error: "Cannot determine author from token or request" })
+      return
+    }
+    // Fetch the contribution to match author and status.
+    const existing = await dbService.getContribution(req.params.id)
+    if (!existing) {
+      res.status(404).json({ error: "Contribution not found" })
+      return
+    }
+    if (existing.changeSet.author !== author) {
+      res
+        .status(403)
+        .json({ error: "You cannot delete contributions made by others" })
+      return
+    }
+    if (existing.status !== ContributionStatus.WorkInProgress) {
+      res.status(400).json({
+        error: `This contribution has status ${existing.status} and cannot be deleted.`
+      })
+      return
+    }
+    const success = await dbService.deleteContribution(req.params.id)
+    if (!success) {
+      res.status(500).json({ error: "Failed to delete contribution" })
+      return
+    }
+    res.status(204).end()
+  } catch (error) {
+    console.error("Error deleting WIP contributions:", error)
+    res.status(500).json({ error: "Failed to delete WIP contributions" })
+  }
+})
+
 // Create new/replace contribution
 app.post("/contributions", authenticateJWT, async (req, res) => {
   try {
-    // Extract user info from JWT
-    const user = (req as any).user
-    const author =
-      user?.username ||
-      user?.name ||
-      user?.email ||
-      req.body?.changeSet?.author ||
-      "Unknown"
+    const author = getAuthorFromRequest(req)
+    "Unknown"
     // Check if contribution already exists
     const existing = await dbService.getContribution(req.body.id)
     // If existing it must match the user.
@@ -309,7 +375,7 @@ app.patch(
   authenticateJWT,
   async (req, res) => {
     try {
-      const { status } = req.body
+      const { status, decisionComments } = req.body
       if (
         typeof status !== "number" ||
         (status !== ContributionStatus.Published &&
@@ -329,7 +395,11 @@ app.patch(
         res.status(404).json({ error: "Contribution not found" })
         return
       }
-      let updatedContribution = { ...existing, status }
+      let updatedContribution: ContributionEntity = {
+        ...existing,
+        status,
+        decisionComments: decisionComments?.toString()
+      }
       updatedContribution =
         await dbService.createContribution(updatedContribution)
       res.json(updatedContribution)
@@ -407,7 +477,7 @@ app.post(
       const type = inferMediaTypeFromMime(uploadedFile.mimetype)
       if (!type || !name) {
         // Clean up uploaded file if validation fails
-        await fs.unlink(uploadedFile.path).catch(() => {})
+        await fs.unlink(uploadedFile.path).catch(() => { })
         res.status(400).json({
           error: "Missing required fields",
           details: "Name is required"
@@ -429,7 +499,7 @@ app.post(
       )
       if (!updatedContribution) {
         // Clean up uploaded file if contribution not found
-        await fs.unlink(uploadedFile.path).catch(() => {})
+        await fs.unlink(uploadedFile.path).catch(() => { })
         res.status(404).json({ error: "Contribution not found" })
         return
       }
@@ -445,7 +515,7 @@ app.post(
     } catch (error) {
       // Clean up uploaded file on error
       if (req.file) {
-        await fs.unlink(req.file.path).catch(() => {})
+        await fs.unlink(req.file.path).catch(() => { })
       }
       console.error(
         `Error uploading media for contribution ${req.params.id}:`,
@@ -556,6 +626,43 @@ app.post("/create_batch", authenticateJWT, async (req, res) => {
   }
 })
 
+app.delete("/batches/:id", authenticateJWT, async (req, res) => {
+  // Delete batch only if no contributions are assigned to it.
+  try {
+    const batchId = parseInt(req.params.id)
+    if (isNaN(batchId)) {
+      res.status(400).json({
+        error: "Invalid batch ID",
+        details: "Batch ID must be a number"
+      })
+      return
+    }
+    // Check if the batch has any contributions
+    const hasContributions = await dbService.batchHasContributions(batchId)
+    if (hasContributions) {
+      res.status(400).json({
+        error: "Cannot delete batch with assigned contributions"
+      })
+      return
+    }
+    // Delete the batch
+    const success = await dbService.deleteBatch(batchId)
+    if (!success) {
+      res.status(500).json({
+        error: "Failed to delete batch"
+      })
+      return
+    }
+    res.status(204).send()
+  } catch (error) {
+    console.error(`Error deleting batch ${req.params.id}:`, error)
+    res.status(500).json({
+      error: "Failed to delete batch",
+      details: (error as Error).message
+    })
+  }
+})
+
 // Assign contribution to batch
 app.patch("/assign_to_batch", authenticateJWT, async (req, res) => {
   try {
@@ -582,7 +689,7 @@ app.patch("/assign_to_batch", authenticateJWT, async (req, res) => {
     res.json(updatedContribution)
   } catch (error) {
     console.error(
-      `Error assigning contribution ${req.body.contribution_id} to batch:`,
+      `Error assigning contribution(s) ${Array.isArray(req.body.contribution_id) ? req.body.contribution_id.join(",") : req.body.contribution_id} to batch:`,
       error
     )
     res.status(500).json({
@@ -722,23 +829,6 @@ app.post("/publish", authenticateJWT, async (req, res) => {
     })
   }
 })
-
-// Delete contribution
-// app.delete("/contributions/:id", authenticateJWT, async (req, res) => {
-//   try {
-//     const success = await dbService.deleteContribution(req.params.id)
-//
-//     if (!success) {
-//       res.status(404).json({ error: "Contribution not found" })
-//       return
-//     }
-//
-//     res.status(204).send()
-//   } catch (error) {
-//     console.error(`Error deleting contribution ${req.params.id}:`, error)
-//     res.status(500).json({ error: "Failed to delete contribution" })
-//   }
-// })
 
 app.get(
   "/enumerate/:schema",

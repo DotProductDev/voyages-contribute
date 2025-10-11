@@ -57,13 +57,26 @@ export interface Contribution {
    * The original contribution change set.
    */
   changeSet: ChangeSet
+  /**
+   * The current status of this contribution. Note: only WIP contributions
+   * can be deleted. Once a contribution is submitted, it can be rejected,
+   * but will remain in the database.
+   */
   status: ContributionStatus
   /**
    * The linear sequence of editorial reviews applied to this contribution.
    */
   reviews: Review[]
+  /**
+   * Media files attached to this contribution, e.g. images, audio, documents.
+   */
   media: ContributionMedia[]
-  batch?: PublicationBatch
+  /** Publication batch this contribution is assigned to (null if cleared). */
+  batch?: PublicationBatch | null
+  /**
+   * Comments by the editor regarding the final decision on this Contribution.
+   */
+  decisionComments?: string
 }
 
 /**

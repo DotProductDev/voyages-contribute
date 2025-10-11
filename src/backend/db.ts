@@ -139,7 +139,10 @@ export class ContributionEntity implements Contribution {
 
   @ManyToOne(() => PublicationBatchEntity, { nullable: true })
   @JoinColumn()
-  batch?: PublicationBatchEntity
+  batch?: PublicationBatchEntity | null
+
+  @Column({ type: "varchar", nullable: true })
+  decisionComments?: string
 }
 
 // Database connection (SQLite)
@@ -224,6 +227,7 @@ export class DatabaseService {
       limit?: number
       status?: ContributionStatus | ContributionStatus[]
       batchId?: number | null
+      author?: string
       sortBy?: "author" | "timestamp" | "id"
       sortOrder?: "ASC" | "DESC"
     } = {}
@@ -260,6 +264,10 @@ export class DatabaseService {
         // Filter for contributions assigned to specific batch
         where.batch = { id: batchId }
       }
+    }
+
+    if (options.author) {
+      where.changeSet = { author: options.author }
     }
 
     // Build order clause
@@ -412,35 +420,48 @@ export class DatabaseService {
 
   // Assign contribution to batch (or clear assignment with null batch_id)
   async assignContributionToBatch(
-    contributionId: string,
+    contributionId: string | string[],
     batchId: number | null
-  ): Promise<ContributionEntity | { error: string }> {
+  ): Promise<ContributionEntity | ContributionEntity[] | { error: string }> {
+    const ids = Array.isArray(contributionId) ? contributionId : [contributionId]
     return await AppDataSource.transaction(async (manager) => {
-      // Check if contribution exists
-      const contribution = await manager.findOne(ContributionEntity, {
-        where: { id: contributionId }
-      })
-      if (!contribution) {
-        return { error: "Contribution not found" }
+      // Fetch all contributions requested
+      const contributions = await manager.findBy(ContributionEntity, { id: In(ids) })
+      const foundIds = new Set(contributions.map((c) => c.id))
+      const missing = ids.filter((i) => !foundIds.has(i))
+      if (missing.length > 0) {
+        return { error: `Contribution(s) not found: ${missing.join(", ")}` }
       }
-      let batch = null
       // If batchId is provided, verify the batch exists
+      let batch: PublicationBatchEntity | null = null
       if (batchId !== null) {
-        batch = await manager.findOne(PublicationBatchEntity, {
-          where: { id: batchId }
-        })
-
+        batch = await manager.findOne(PublicationBatchEntity, { where: { id: batchId } })
         if (!batch) {
           return { error: `Publication batch with ID ${batchId} not found` }
         }
       }
-      // Update the contribution's batch assignment
-      contribution.batch = batch ?? undefined
-      await manager.save(ContributionEntity, contribution)
-
-      // Return the updated contribution with all relations
-      return await getFullContribution(manager, contributionId)
-        ?? { error: "Could not fetch full contribution" }
+      // Update all contributions
+      for (const c of contributions) {
+        if (batchId === null) {
+          // Explicitly clear relation in DB
+            c.batch = null
+        } else {
+            c.batch = batch ?? null
+        }
+      }
+      await manager.save(ContributionEntity, contributions)
+      // Return the updated contribution(s) with all relations
+      const full = await Promise.all(
+        contributions.map((c) => getFullContribution(manager, c.id))
+      )
+      const resolved = full.filter((c): c is ContributionEntity => !!c)
+      if (!Array.isArray(contributionId)) {
+        return resolved[0] ?? { error: "Could not fetch full contribution" }
+      }
+      if (resolved.length !== contributions.length) {
+        return { error: "Could not fetch all updated contributions" }
+      }
+      return resolved
     })
   }
 
@@ -471,6 +492,20 @@ export class DatabaseService {
   async deleteContribution(id: string): Promise<boolean> {
     const result = await this.contributionRepo.delete(id)
     return result.affected ? result.affected > 0 : false
+  }
+
+  // Check whether a batch has any contributions assigned.
+  async batchHasContributions(batchId: number): Promise<boolean> {
+    const count = await this.contributionRepo.count({
+      where: { batch: { id: batchId } }
+    })
+    return count > 0
+  }
+
+  // Delete a publication batch by id (only call if it has no contributions!)
+  async deleteBatch(batchId: number): Promise<boolean> {
+    const result = await this.batchRepository.delete(batchId)
+    return (result.affected ?? 0) > 0
   }
 }
 
