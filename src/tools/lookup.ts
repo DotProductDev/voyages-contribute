@@ -9,7 +9,8 @@ import { EntityLookUp } from "./importer"
 const getCacheEntry = async (
   url: string,
   schema: EntitySchema,
-  field: string
+  field: string,
+  errorCount = 0
 ): Promise<Record<string, MaterializedEntity>> => {
   try {
     const res = await fetch(new URL(`${url}/enumerate/${schema.name}`))
@@ -36,7 +37,7 @@ const getCacheEntry = async (
       `Error fetching data for schema "${schema.name}" and field "${field}":`,
       err
     )
-    return await getCacheEntry(url, schema, field)
+    return errorCount > 3 ? {} : await getCacheEntry(url, schema, field, errorCount + 1)
   }
 }
 

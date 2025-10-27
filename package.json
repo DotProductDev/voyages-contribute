@@ -24,10 +24,12 @@
     "build": "tsc && vite build",
     "build-frontend": "tsc --p ./tsconfig-frontend.json && vite build --mode frontend --outDir output/frontend",
     "build-server": "tsc && vite build --mode server --outDir output/server",
+    "build-tools": "tsc && vite build --mode tools --outDir output/tools",
     "pack": "npm run build-frontend && node scripts/build.js && npm pack ./output/frontend --pack-destination output/",
     "publish-package": "npm run pack && npm publish ./output/frontend",
     "preview": "vite preview",
     "server": "npm run build-server && dotenv -e .env -- node output/server/server.js",
+    "tools": "npm run build-tools && dotenv -e .env -- node output/tools/tools.js",
     "test": "vitest",
     "lint": "eslint \"src/**/*.ts\"",
     "lint:fix": "eslint \"src/**/*.ts\" --fix"

@@ -51,7 +51,7 @@ if (cmd === "inspect" && args.length >= 2) {
   process.exit(0)
 } else if (cmd === "import" && args.length >= 4) {
   const maxRows = args.length >= 5 ? parseInt(args[4], 10) : undefined
-  const [_, apiUrl, schemaName, filename] = args
+  const [_, apiUrl, schemaName, filename, contribStatus = "0"] = args
   const errors: TrackedMappingErrors[] = []
   const updates = await importCSV(apiUrl, schemaName, filename, errors, maxRows)
   if (errors.length > 0) {
@@ -128,7 +128,7 @@ if (cmd === "inspect" && args.length >= 2) {
         title: `Import of ${schemaName} #${update.entityRef.id}`,
         timestamp: Date.now()
       },
-      status: 0, // ContributionStatus.WorkInProgress,
+      status: parseInt(contribStatus), // ContributionStatus.WorkInProgress,
       reviews: [],
       media: [],
       batch
@@ -155,8 +155,8 @@ if (cmd === "inspect" && args.length >= 2) {
   process.exit(0)
 } else {
   console.error(
-    `Usage: tsx command.ts <command='import'|'inspect'> 
-      import <apiUrl> <schemaName> <filename> (<maxRows>)
+    `Usage: npm run tools <command='import'|'inspect'> 
+      import <apiUrl> <schemaName> <filename> (<maxRows>) (<contribStatus>)
       inspect <schemaName> (<optional file to extract headers from>)`
   )
 }
