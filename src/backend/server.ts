@@ -328,7 +328,6 @@ app.delete("/contributions/wip/:id", authenticateJWT, async (req, res) => {
 app.post("/contributions", authenticateJWT, async (req, res) => {
   try {
     const author = getAuthorFromRequest(req)
-    "Unknown"
     // Check if contribution already exists
     const existing = req.body.id
       ? await dbService.getContribution(req.body.id)
