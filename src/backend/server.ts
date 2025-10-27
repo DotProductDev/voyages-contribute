@@ -264,9 +264,11 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
       req.body?.changeSet?.author ||
       "Unknown"
     // Check if contribution already exists
-    const existing = await dbService.getContribution(req.body.id)
+    const existing = req.body.id
+      ? await dbService.getContribution(req.body.id)
+      : null
     // If existing it must match the user.
-    if (existing && existing.changeSet.author !== author) {
+    if (existing && existing.changeSet?.author !== author) {
       res
         .status(403)
         .json({ error: "You cannot modify contributions made by others" })
@@ -286,14 +288,16 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
     // Create contribution with author from JWT
     const contributionData = {
       ...req.body,
+      id: existing?.id ?? req.body.id ?? self.crypto.randomUUID(),
       changeSet: {
         ...req.body.changeSet,
-        id: existing?.changeSet?.id,
+        id: existing?.changeSet?.id ?? self.crypto.randomUUID(),
         author,
         timestamp: Date.now()
       },
       media: existing?.media ?? [],
-      batch: req.body.batch ?? existing?.batch ?? null
+      batch: req.body.batch ?? existing?.batch ?? null,
+      status: ContributionStatus.WorkInProgress
     }
     const contribution = await dbService.createContribution(contributionData)
     res.status(201).json(contribution)
@@ -648,6 +652,27 @@ app.post("/publish", authenticateJWT, async (req, res) => {
         })
         return
       }
+      // Quick validation.
+      const invalid = batchContributions
+        .map((c) => {
+          const clen = c.changeSet?.changes?.length
+          if ((clen ?? 0) === 0) {
+            return { error: `No changes in changeSet ${clen}`, contribution: c }
+          }
+          if (c.reviews === undefined) {
+            return { error: "Reviews is undefined", contribution: c }
+          }
+          return undefined
+        })
+        .filter((v) => v !== undefined)
+      if (invalid.length > 0) {
+        res.status(500).json({
+          error:
+            "Some contributions in the batch are not valid for publication",
+          invalid: invalid.slice(0, 10)
+        })
+        return
+      }
       contributions = batchContributions
     } else {
       const contribution = await dbService.getContribution(id)
@@ -705,7 +730,8 @@ app.post("/publish", authenticateJWT, async (req, res) => {
       },
       body: JSON.stringify({
         key: `${id}_${mode}`,
-        changeset
+        changeset,
+        contribution_ids: contributions.map((c) => c.id)
       })
     })
     // TODO: once the publication is done, we need to change the status from
@@ -718,6 +744,42 @@ app.post("/publish", authenticateJWT, async (req, res) => {
     console.error("Error publishing batch:", error)
     res.status(500).json({
       error: "Failed to publish batch",
+      details: (error as Error).message
+    })
+  }
+})
+
+app.post("/publish_poll/:pub_id", authenticateJWT, async (req, res) => {
+  try {
+    const { pub_id } = req.params
+    const pubRes = await fetch(
+      `${VOYAGES_SERVER_URL}/contrib/publication_status/${pub_id}`
+    )
+    const pubState = await pubRes.json()
+    if (
+      pubRes.ok &&
+      pubState.status === "completed" &&
+      Array.isArray(pubState.contribution_ids)
+    ) {
+      try {
+        // Update all published contributions to Published status in a single query
+        const updatedCount = await dbService.updateMultipleContributions(
+          pubState.contribution_ids,
+          { status: ContributionStatus.Published }
+        )
+        console.log(
+          `Successfully updated ${updatedCount} contributions to Published status`
+        )
+      } catch (updateError) {
+        console.error("Error updating contribution statuses:", updateError)
+        // Don't fail the entire request if status update fails, just log it
+      }
+    }
+    res.status(pubRes.status).json(pubState)
+  } catch (error) {
+    console.error("Error polling publication status:", error)
+    res.status(500).json({
+      error: "Failed to poll publication status",
       details: (error as Error).message
     })
   }

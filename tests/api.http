@@ -146,6 +146,51 @@ Content-Type: application/json
 }
 
 ###
+### Add some review with specific author and timestamp
+
+POST {{baseUrl}}/contributions/Voyage.Voyage.500003/add_review
+Content-Type: application/json
+
+{
+  "changeSet": {
+    "id": "review-1759876419675",
+    "author": "Editor",
+    "title": "Review for Import of Voyage #500003",
+    "comments": "Imported from CSV file C:\\Users\\domin\\Downloads\\IOA_Voyages.csv on 2025-07-07T20:51:45.271Z",
+    "timestamp": 1759876435076,
+    "changes": [
+      {
+        "type": "update",
+        "entityRef": {
+          "id": "500003",
+          "schema": "Voyage",
+          "type": "new"
+        },
+        "changes": [
+          {
+            "kind": "linked",
+            "property": "Voyage_voyage_groupings",
+            "changed": {
+              "entityRef": {
+                "id": 2,
+                "schema": "VoyageGrouping",
+                "type": "existing"
+              },
+              "data": {
+                "Name": "Galera, 1801-25",
+                "Code": 63,
+                "id": 2
+              },
+              "state": "lazy"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+
+###
 
 ### Add a second review emulating a Bot
 
@@ -463,5 +508,10 @@ Content-Type: application/json
   "mode": "batch",
   "id": 1
 }
+
+###
+
+### Poll publication status
+POST {{baseUrl}}/publish_poll/1_batch
 
 ###

@@ -121,6 +121,7 @@ export class ContributionEntity implements Contribution {
     onDelete: "CASCADE",
     nullable: false
   })
+
   @JoinColumn()
   changeSet!: ChangeSetEntity
 
@@ -167,13 +168,15 @@ export const AppDataSource = new DataSource({
   migrations: []
 })
 
+const contribAllRelations = ["changeSet", "reviews", "reviews.changeSet", "media", "batch"]
+
 const getFullContribution = (
   manager: EntityManager,
   id: string
 ): Promise<ContributionEntity | null> =>
   manager.findOne(ContributionEntity, {
     where: { id },
-    relations: ["changeSet", "reviews", "reviews.changeSet", "media", "batch"]
+    relations: contribAllRelations
   })
 
 // Initialize repositories
@@ -204,7 +207,7 @@ export class DatabaseService {
   ): Promise<ContributionEntity[] | null> {
     return this.contributionRepo.find({
       where: { batch: { id: batchId }, status },
-      relations: ["changeSet", "reviews", "media"]
+      relations: contribAllRelations
     })
   }
 
@@ -224,6 +227,7 @@ export class DatabaseService {
       limit?: number
       status?: ContributionStatus | ContributionStatus[]
       batchId?: number | null
+      author?: string
       sortBy?: "author" | "timestamp" | "id"
       sortOrder?: "ASC" | "DESC"
     } = {}
@@ -238,6 +242,7 @@ export class DatabaseService {
       page = 1,
       status,
       batchId,
+      author,
       sortBy = "id",
       sortOrder = "ASC"
     } = options
@@ -261,6 +266,10 @@ export class DatabaseService {
         where.batch = { id: batchId }
       }
     }
+    
+    if (author) {
+      where.changeSet = { author }
+    }
 
     // Build order clause
     const order: any = {}
@@ -281,7 +290,7 @@ export class DatabaseService {
       order,
       skip: offset,
       take: limit,
-      relations: ["changeSet", "media", "reviews", "batch"]
+      relations: contribAllRelations
     })
 
     return {
@@ -298,6 +307,20 @@ export class DatabaseService {
   ): Promise<ContributionEntity | null> {
     await this.contributionRepo.update(id, data as Partial<ContributionEntity>)
     return this.getContribution(id)
+  }
+
+  async updateMultipleContributions(
+    ids: string[],
+    data: Partial<Contribution>
+  ): Promise<number> {
+    if (ids.length === 0) {
+      return 0
+    }
+    const result = await this.contributionRepo.update(
+      { id: In(ids) }, 
+      data as Partial<ContributionEntity>
+    )
+    return result.affected || 0
   }
 
   async addMediaToContribution(
