@@ -24,6 +24,7 @@ import multer from "multer"
 import path from "path"
 import fs from "fs/promises"
 import { foldCombinedChanges } from "../models"
+import { randomUUID } from "crypto"
 
 // Load environment variables
 dotenv.config()
@@ -353,10 +354,10 @@ app.post("/contributions", authenticateJWT, async (req, res) => {
     // Create contribution with author from JWT
     const contributionData = {
       ...req.body,
-      id: existing?.id ?? req.body.id ?? self.crypto.randomUUID(),
+      id: existing?.id ?? req.body.id ?? randomUUID(),
       changeSet: {
         ...req.body.changeSet,
-        id: existing?.changeSet?.id ?? self.crypto.randomUUID(),
+        id: existing?.changeSet?.id ?? randomUUID(),
         author,
         timestamp: Date.now()
       },

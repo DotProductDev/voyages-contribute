@@ -1054,7 +1054,11 @@ export const voyageMapping: DataMapping = {
                       d = d.slice(0, idxSep).trim()
                       values.push(d)
                     }
-                    return values.length > 0 ? values : null
+                    return values.length > 0
+                      ? values
+                      : d.trim() !== ""
+                        ? [d]
+                        : null
                   }
                 },
                 {

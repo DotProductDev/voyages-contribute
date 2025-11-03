@@ -8,6 +8,7 @@ import {
   TrackedMappingErrors
 } from "./importer"
 import fs from "node:fs"
+import { randomUUID } from "crypto"
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -121,7 +122,7 @@ if (cmd === "inspect" && args.length >= 2) {
       id: `${schemaName}.${schemaName}.${update.entityRef.id}`,
       root: update.entityRef,
       changeSet: {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         author: "CSV importer script",
         changes: [update],
         comments: `Imported from CSV file ${filename} on ${new Date().toISOString()}`,
