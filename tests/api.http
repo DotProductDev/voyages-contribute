@@ -639,3 +639,10 @@ Content-Type: application/json
 POST {{baseUrl}}/publish_poll/1_batch
 
 ###
+
+### WIP by contributor
+
+GET {{baseUrl}}/contributions/wip
+Authorization: CSV importer script
+
+###

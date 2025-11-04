@@ -115,9 +115,6 @@ const inferMediaTypeFromMime = (
   return "document"
 }
 
-// Local debug JWT:
-// eyJhbGciOiJIUzI1NiJ9.eyJSb2xlIjoiV2ViVUkiLCJJc3N1ZXIiOiJJc3N1ZXIiLCJVc2VybmFtZSI6IkNvbnRyaWJ1dGVBcHAiLCJleHAiOjM5NTE0NzM0NzIsImlhdCI6MTc0MjQ4NDY3Mn0.11NiAwJt59AyIUF4gO04IUr8earCFQPsQPVXyeMydD0
-
 // Middleware
 app.use(cors())
 app.use(express.json())
@@ -131,6 +128,7 @@ let resolver: DataResolver
 const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
   if (JWT_SECRET === "dummy-secret") {
     // TODO: remove this when auth is implemented.
+    ;(req as any).user = req.headers.authorization ?? "unknown"
     next()
     return
   }
@@ -150,7 +148,7 @@ const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
 
   try {
     const user = jwt.verify(token, JWT_SECRET)
-      ; (req as any).user = user
+    ;(req as any).user = user
     next() // Call next() to proceed to the next middleware or route handler
   } catch {
     res.status(403).json({ error: "Invalid or expired token" })
@@ -236,6 +234,30 @@ app.get("/contributions", authenticateJWT, async (req, res) => {
   }
 })
 
+app.get("/contributions/wip", authenticateJWT, async (req, res) => {
+  try {
+    const author = getAuthorFromRequest(req)
+    if (!author) {
+      res
+        .status(400)
+        .json({ error: "Cannot determine author from token or request" })
+      return
+    }
+    const contributions = await dbService.listContributions({
+      ...getPaginationArgs(req),
+      author,
+      status: ContributionStatus.WorkInProgress
+    })
+    res.json(contributions)
+  } catch (error) {
+    console.error(
+      `Error fetching WIP contributions for user ${req.params.user}:`,
+      error
+    )
+    res.status(500).json({ error: "Failed to fetch WIP contributions" })
+  }
+})
+
 // Get contribution by ID
 app.get("/contributions/:id", authenticateJWT, async (req, res) => {
   try {
@@ -257,40 +279,23 @@ const getAuthorFromRequest = (req: Request): string | null => {
   const user = (req as any).user
   // TODO: if no user is authenticated, return null!
   const author =
-    user?.username ||
-    user?.name ||
-    user?.email ||
-    req.body?.changeSet?.author ||
-    "Unknown"
+    typeof user === "string"
+      ? user
+      : user?.username ||
+        user?.name ||
+        user?.email ||
+        req.body?.changeSet?.author ||
+        "Unknown"
   return author
 }
 
-app.get("/contributions/wip", authenticateJWT, async (req, res) => {
+app.delete("/contributions/wip/:id", authenticateJWT, async (req, res) => {
   try {
     const author = getAuthorFromRequest(req)
     if (!author) {
       res
         .status(400)
         .json({ error: "Cannot determine author from token or request" })
-      return
-    }
-    const contributions = await dbService.listContributions({
-      ...getPaginationArgs(req),
-      author,
-      status: ContributionStatus.WorkInProgress
-    })
-    res.json(contributions)
-  } catch (error) {
-    console.error(`Error fetching WIP contributions for user ${req.params.user}:`, error)
-    res.status(500).json({ error: "Failed to fetch WIP contributions" })
-  }
-})
-
-app.delete("/contributions/wip/:id", authenticateJWT, async (req, res) => {
-  try {
-    const author = getAuthorFromRequest(req)
-    if (!author) {
-      res.status(400).json({ error: "Cannot determine author from token or request" })
         .status(400)
         .json({ error: "Cannot determine author from token or request" })
       return
@@ -481,7 +486,7 @@ app.post(
       const type = inferMediaTypeFromMime(uploadedFile.mimetype)
       if (!type || !name) {
         // Clean up uploaded file if validation fails
-        await fs.unlink(uploadedFile.path).catch(() => { })
+        await fs.unlink(uploadedFile.path).catch(() => {})
         res.status(400).json({
           error: "Missing required fields",
           details: "Name is required"
@@ -503,7 +508,7 @@ app.post(
       )
       if (!updatedContribution) {
         // Clean up uploaded file if contribution not found
-        await fs.unlink(uploadedFile.path).catch(() => { })
+        await fs.unlink(uploadedFile.path).catch(() => {})
         res.status(404).json({ error: "Contribution not found" })
         return
       }
@@ -519,7 +524,7 @@ app.post(
     } catch (error) {
       // Clean up uploaded file on error
       if (req.file) {
-        await fs.unlink(req.file.path).catch(() => { })
+        await fs.unlink(req.file.path).catch(() => {})
       }
       console.error(
         `Error uploading media for contribution ${req.params.id}:`,
