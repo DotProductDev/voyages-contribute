@@ -71,6 +71,7 @@ if (cmd === "inspect" && args.length >= 2) {
     })
     const MAX_ROWS_ARRAY_LENGTH = 6
     errors.forEach((e) => {
+      e.count = e.rowNumbers.length
       if (e.rowNumbers.length > MAX_ROWS_ARRAY_LENGTH) {
         // Limit to first rows and add a note.
         const kept = MAX_ROWS_ARRAY_LENGTH - 1
